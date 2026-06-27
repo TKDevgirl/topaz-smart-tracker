@@ -5,52 +5,81 @@ from datetime import datetime
 from io import BytesIO
 import pandas as pd
 
+st.set_page_config(
+    page_title="Topaz Smart Document Tracker",
+    page_icon="📄",
+    layout="wide"
+)
+
 tracking_sheets = ["RFA", "RFI"]
 takenaka_sheets = ["MAT_ICT", "DWG_ICT", "MTS_ICT"]
+
 
 def base_doc_no(doc_no):
     doc_no = str(doc_no).strip()
     parts = doc_no.split("-")
+
     if parts[-1].isdigit() and len(parts[-1]) == 2:
         return "-".join(parts[:-1])
+
     return doc_no
 
-def generate_report(tracking_file, takenaka_file):
-    takenaka_wb = load_workbook(takenaka_file, data_only=True)
-    takenaka_map = {}
+
+def read_takenaka(takenaka_file):
+    wb = load_workbook(takenaka_file, data_only=True)
+    data = {}
 
     for sheet in takenaka_sheets:
-        if sheet not in takenaka_wb.sheetnames:
+        if sheet not in wb.sheetnames:
             continue
 
-        ws = takenaka_wb[sheet]
+        ws = wb[sheet]
+
         for row in range(11, ws.max_row + 1):
             doc_no = ws[f"E{row}"].value
+
             if not doc_no or "DETH-NSC" not in str(doc_no):
                 continue
 
-            takenaka_map[base_doc_no(doc_no)] = {
-                "sheet": sheet,
-                "doc_no": doc_no,
-                "status1": ws[f"AA{row}"].value,
-                "status2": ws[f"AB{row}"].value,
-                "status3": ws[f"AC{row}"].value,
+            key = base_doc_no(doc_no)
+
+            data[key] = {
+                "Takenaka Sheet": sheet,
+                "Takenaka Doc No": doc_no,
+                "Takenaka Status 1": ws[f"AA{row}"].value,
+                "Takenaka Status 2": ws[f"AB{row}"].value,
+                "Takenaka Status 3": ws[f"AC{row}"].value,
             }
 
-    out_wb = load_workbook(tracking_file)
+    return data
+
+
+def generate_report(tracking_file, takenaka_file):
+    takenaka_map = read_takenaka(takenaka_file)
+
+    wb = load_workbook(tracking_file)
     report_sheet = "Open_On_Process_Compare"
 
-    if report_sheet in out_wb.sheetnames:
-        del out_wb[report_sheet]
+    if report_sheet in wb.sheetnames:
+        del wb[report_sheet]
 
-    report_ws = out_wb.create_sheet(report_sheet)
+    report_ws = wb.create_sheet(report_sheet)
 
     headers = [
-        "Tracking Sheet", "Document No", "Document Name", "Tracking Status",
-        "Takenaka Sheet", "Takenaka Doc No",
-        "Takenaka Status 1", "Takenaka Status 2", "Takenaka Status 3",
-        "Action", "Checked Time"
+        "Tracking Sheet",
+        "Document No",
+        "Document Name",
+        "Tracking Status",
+        "Info",
+        "Takenaka Sheet",
+        "Takenaka Doc No",
+        "Takenaka Status 1",
+        "Takenaka Status 2",
+        "Takenaka Status 3",
+        "Action",
+        "Checked Time",
     ]
+
     report_ws.append(headers)
 
     for cell in report_ws[1]:
@@ -64,36 +93,42 @@ def generate_report(tracking_file, takenaka_file):
 
     rows = []
     total_docs = 0
-    open_count = 0
-    action_count = {}
+    open_docs = 0
 
     for sheet in tracking_sheets:
-        if sheet not in out_wb.sheetnames:
+        if sheet not in wb.sheetnames:
             continue
 
-        ws = out_wb[sheet]
+        ws = wb[sheet]
+
         for row in range(2, ws.max_row + 1):
             doc_no = ws[f"B{row}"].value
             doc_name = ws[f"D{row}"].value
-            status = ws[f"F{row}"].value
+            tracking_status = ws[f"F{row}"].value
+            info = ws[f"G{row}"].value
 
             if not doc_no:
                 continue
 
             total_docs += 1
 
-            if str(status or "").strip().upper() != "OPEN":
+            tracking_status_text = str(tracking_status or "").strip().upper()
+            info_text = str(info or "").strip().upper()
+
+            # สนใจเฉพาะ OPEN และ ON PROGRESS / ON PROCESS
+            if tracking_status_text != "OPEN" and "ON PROGRESS" not in info_text and "ON PROCESS" not in info_text:
                 continue
 
-            open_count += 1
+            open_docs += 1
             key = base_doc_no(doc_no)
             checked_time = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
             if key in takenaka_map:
                 src = takenaka_map[key]
-                s1 = str(src["status1"] or "").strip().upper()
-                s2 = str(src["status2"] or "").strip().upper()
-                s3 = str(src["status3"] or "").strip().upper()
+
+                s1 = str(src["Takenaka Status 1"] or "").strip().upper()
+                s2 = str(src["Takenaka Status 2"] or "").strip().upper()
+                s3 = str(src["Takenaka Status 3"] or "").strip().upper()
 
                 if s1 == "CLOSED":
                     action = "UPDATE TRACKING TO CLOSED"
@@ -115,103 +150,139 @@ def generate_report(tracking_file, takenaka_file):
                     fill = blue
 
                 new_row = [
-                    sheet, doc_no, doc_name, status,
-                    src["sheet"], src["doc_no"],
-                    src["status1"], src["status2"], src["status3"],
-                    action, checked_time
+                    sheet,
+                    doc_no,
+                    doc_name,
+                    tracking_status,
+                    info,
+                    src["Takenaka Sheet"],
+                    src["Takenaka Doc No"],
+                    src["Takenaka Status 1"],
+                    src["Takenaka Status 2"],
+                    src["Takenaka Status 3"],
+                    action,
+                    checked_time,
                 ]
+
             else:
                 action = "NOT FOUND IN TAKENAKA SOURCE"
                 fill = red
+
                 new_row = [
-                    sheet, doc_no, doc_name, status,
-                    "", "", "", "", "",
-                    action, checked_time
+                    sheet,
+                    doc_no,
+                    doc_name,
+                    tracking_status,
+                    info,
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    action,
+                    checked_time,
                 ]
 
             report_ws.append(new_row)
-            report_ws[f"J{report_ws.max_row}"].fill = fill
+            report_ws[f"K{report_ws.max_row}"].fill = fill
 
             rows.append({
                 "Tracking Sheet": new_row[0],
                 "Document No": new_row[1],
                 "Document Name": new_row[2],
                 "Tracking Status": new_row[3],
-                "Takenaka Status 1": new_row[6],
-                "Takenaka Status 2": new_row[7],
-                "Takenaka Status 3": new_row[8],
-                "Action": new_row[9],
+                "Info": new_row[4],
+                "Takenaka Status 1": new_row[7],
+                "Takenaka Status 2": new_row[8],
+                "Takenaka Status 3": new_row[9],
+                "Action": new_row[10],
             })
-
-            action_count[action] = action_count.get(action, 0) + 1
 
     for col in report_ws.columns:
         max_len = 0
         col_letter = col[0].column_letter
+
         for cell in col:
             if cell.value:
                 max_len = max(max_len, len(str(cell.value)))
-        report_ws.column_dimensions[col_letter].width = min(max_len + 2, 50)
+
+        report_ws.column_dimensions[col_letter].width = min(max_len + 2, 55)
 
     output = BytesIO()
-    out_wb.save(output)
+    wb.save(output)
     output.seek(0)
 
-    return output, total_docs, open_count, action_count, rows
+    return output, total_docs, open_docs, rows
 
-st.set_page_config(
-    page_title="Topaz Smart Document Tracker",
-    page_icon="📄",
-    layout="wide"
-)
 
 st.title("📄 Topaz Smart Document Tracker")
-st.caption("Compare OPEN documents from Tracking Document with Takenaka Status.")
+st.caption("Web dashboard for OPEN / ON PROGRESS documents compared with Takenaka status.")
 
 tracking_file = st.file_uploader("1) Upload Tracking_document.xlsx", type=["xlsx"])
 takenaka_file = st.file_uploader("2) Upload Takenaka Summary.xlsx", type=["xlsx"])
 
 if tracking_file and takenaka_file:
-    if st.button("Generate Report", type="primary"):
-        report, total_docs, open_count, action_count, rows = generate_report(
-            tracking_file, takenaka_file
-        )
+    if st.button("Generate Dashboard", type="primary"):
 
-        st.success("Report generated successfully ka ✅")
+        with st.spinner("Reading files and generating dashboard..."):
+            report, total_docs, open_docs, rows = generate_report(
+                tracking_file,
+                takenaka_file
+            )
+
+        df = pd.DataFrame(rows)
+
+        st.success("Dashboard generated successfully ✅")
+
+        action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
 
         c1, c2, c3, c4, c5 = st.columns(5)
+
         c1.metric("Total Documents", total_docs)
-        c2.metric("Open in Tracking", open_count)
-        c3.metric("Open & On Process", action_count.get("OPEN & ON PROCESS", 0))
-        c4.metric("Need Update", action_count.get("UPDATE TRACKING TO CLOSED", 0))
-        c5.metric("Overdue / Follow Up", action_count.get("OVERDUE / FOLLOW UP", 0))
+        c2.metric("Open / On Progress", open_docs)
+        c3.metric("Open & On Process", action_counts.get("OPEN & ON PROCESS", 0))
+        c4.metric("Need Update", action_counts.get("UPDATE TRACKING TO CLOSED", 0))
+        c5.metric("Overdue", action_counts.get("OVERDUE / FOLLOW UP", 0))
+
+        st.divider()
 
         st.subheader("📊 Action Summary")
+
         summary_df = pd.DataFrame(
-            [{"Action": k, "Count": v} for k, v in action_count.items()]
-        )
-        st.dataframe(summary_df, use_container_width=True)
-
-        st.subheader("📋 Action List")
-        result_df = pd.DataFrame(rows)
-
-        selected_action = st.selectbox(
-            "Filter by Action",
-            ["All"] + sorted(result_df["Action"].unique().tolist())
+            [{"Action": k, "Count": v} for k, v in action_counts.items()]
         )
 
-        if selected_action != "All":
-            result_df = result_df[result_df["Action"] == selected_action]
+        if not summary_df.empty:
+            st.bar_chart(summary_df.set_index("Action"))
+            st.dataframe(summary_df, use_container_width=True)
+        else:
+            st.info("No open or on-progress documents found.")
 
-        search = st.text_input("Search Document No / Document Name")
-        if search:
-            result_df = result_df[
-                result_df.astype(str).apply(
-                    lambda x: x.str.contains(search, case=False, na=False)
-                ).any(axis=1)
-            ]
+        st.divider()
 
-        st.dataframe(result_df, use_container_width=True)
+        st.subheader("📋 Document Action List")
+
+        if not df.empty:
+            selected_action = st.selectbox(
+                "Filter by Action",
+                ["All"] + sorted(df["Action"].dropna().unique().tolist())
+            )
+
+            search = st.text_input("Search Document No / Document Name")
+
+            filtered_df = df.copy()
+
+            if selected_action != "All":
+                filtered_df = filtered_df[filtered_df["Action"] == selected_action]
+
+            if search:
+                filtered_df = filtered_df[
+                    filtered_df.astype(str).apply(
+                        lambda x: x.str.contains(search, case=False, na=False)
+                    ).any(axis=1)
+                ]
+
+            st.dataframe(filtered_df, use_container_width=True, height=450)
 
         st.download_button(
             label="⬇️ Download Excel Report",
@@ -221,4 +292,4 @@ if tracking_file and takenaka_file:
         )
 
 else:
-    st.info("Please upload both Excel files to generate the report.")
+    st.info("Please upload both Excel files to generate the dashboard.")
