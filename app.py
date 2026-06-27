@@ -10,6 +10,39 @@ st.set_page_config(
     page_icon="📄",
     layout="wide"
 )
+# =========================
+# Login / Role Control
+# =========================
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if "role" not in st.session_state:
+    st.session_state.role = "viewer"
+
+with st.sidebar:
+    st.title("🔐 Login")
+
+    username = st.text_input("Username")
+
+    if st.button("Login"):
+        if username.strip().lower() == "pavinee":
+            st.session_state.logged_in = True
+            st.session_state.role = "admin"
+            st.success("Logged in as Admin")
+        else:
+            st.session_state.logged_in = True
+            st.session_state.role = "viewer"
+            st.info("Logged in as Viewer")
+
+    if st.session_state.logged_in:
+        st.write("User:", username)
+        st.write("Role:", st.session_state.role)
+
+        if st.button("Logout"):
+            st.session_state.logged_in = False
+            st.session_state.role = "viewer"
+            st.rerun()
 
 tracking_sheets = ["RFA", "RFI"]
 takenaka_sheets = ["MAT_ICT", "DWG_ICT", "MTS_ICT"]
@@ -218,33 +251,28 @@ def generate_report(tracking_file, takenaka_file):
 st.title("📄 Topaz Smart Document Tracker")
 st.caption("Web dashboard for OPEN / ON PROGRESS documents compared with Takenaka status.")
 
-tracking_file = st.file_uploader("1) Upload Tracking_document.xlsx", type=["xlsx"])
-takenaka_file = st.file_uploader("2) Upload Takenaka Summary.xlsx", type=["xlsx"])
+if st.session_state.role == "admin":
+    tracking_file = st.file_uploader("1) Upload Tracking_document.xlsx", type=["xlsx"])
+    takenaka_file = st.file_uploader("2) Upload Takenaka Summary.xlsx", type=["xlsx"])
 
-if "result_df" not in st.session_state:
-    st.session_state.result_df = None
-    st.session_state.report = None
-    st.session_state.total_docs = 0
-    st.session_state.open_docs = 0
-    st.session_state.action_counts = {}
+    if tracking_file and takenaka_file:
+        if st.button("Generate Dashboard", type="primary"):
+            with st.spinner("Reading files and generating dashboard..."):
+                report, total_docs, open_docs, rows = generate_report(
+                    tracking_file,
+                    takenaka_file
+                )
 
-if tracking_file and takenaka_file:
-    if st.button("Generate Dashboard", type="primary"):
+            df = pd.DataFrame(rows)
+            action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
 
-        with st.spinner("Reading files and generating dashboard..."):
-            report, total_docs, open_docs, rows = generate_report(
-                tracking_file,
-                takenaka_file
-            )
-
-        df = pd.DataFrame(rows)
-        action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
-
-        st.session_state.result_df = df
-        st.session_state.report = report
-        st.session_state.total_docs = total_docs
-        st.session_state.open_docs = open_docs
-        st.session_state.action_counts = action_counts
+            st.session_state.result_df = df
+            st.session_state.report = report
+            st.session_state.total_docs = total_docs
+            st.session_state.open_docs = open_docs
+            st.session_state.action_counts = action_counts
+else:
+    st.info("Viewer mode: only Pavinee can upload and generate dashboard.")
 
 if st.session_state.result_df is not None:
 
