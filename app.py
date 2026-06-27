@@ -221,6 +221,13 @@ st.caption("Web dashboard for OPEN / ON PROGRESS documents compared with Takenak
 tracking_file = st.file_uploader("1) Upload Tracking_document.xlsx", type=["xlsx"])
 takenaka_file = st.file_uploader("2) Upload Takenaka Summary.xlsx", type=["xlsx"])
 
+if "result_df" not in st.session_state:
+    st.session_state.result_df = None
+    st.session_state.report = None
+    st.session_state.total_docs = 0
+    st.session_state.open_docs = 0
+    st.session_state.action_counts = {}
+
 if tracking_file and takenaka_file:
     if st.button("Generate Dashboard", type="primary"):
 
@@ -231,65 +238,74 @@ if tracking_file and takenaka_file:
             )
 
         df = pd.DataFrame(rows)
-
-        st.success("Dashboard generated successfully ✅")
-
         action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
 
-        c1, c2, c3, c4, c5 = st.columns(5)
+        st.session_state.result_df = df
+        st.session_state.report = report
+        st.session_state.total_docs = total_docs
+        st.session_state.open_docs = open_docs
+        st.session_state.action_counts = action_counts
 
-        c1.metric("Total Documents", total_docs)
-        c2.metric("Open / On Progress", open_docs)
-        c3.metric("Open & On Process", action_counts.get("OPEN & ON PROCESS", 0))
-        c4.metric("Need Update", action_counts.get("UPDATE TRACKING TO CLOSED", 0))
-        c5.metric("Overdue", action_counts.get("OVERDUE / FOLLOW UP", 0))
+if st.session_state.result_df is not None:
 
-        st.divider()
+    df = st.session_state.result_df
+    action_counts = st.session_state.action_counts
 
-        st.subheader("📊 Action Summary")
+    st.success("Dashboard generated successfully ✅")
 
-        summary_df = pd.DataFrame(
-            [{"Action": k, "Count": v} for k, v in action_counts.items()]
-        )
+    c1, c2, c3, c4, c5 = st.columns(5)
 
-        if not summary_df.empty:
-            st.bar_chart(summary_df.set_index("Action"))
-            st.dataframe(summary_df, use_container_width=True)
-        else:
-            st.info("No open or on-progress documents found.")
+    c1.metric("Total Documents", st.session_state.total_docs)
+    c2.metric("Open / On Progress", st.session_state.open_docs)
+    c3.metric("Open & On Process", action_counts.get("OPEN & ON PROCESS", 0))
+    c4.metric("Need Update", action_counts.get("UPDATE TRACKING TO CLOSED", 0))
+    c5.metric("Overdue", action_counts.get("OVERDUE / FOLLOW UP", 0))
 
-        st.divider()
+    st.divider()
 
-        st.subheader("📋 Document Action List")
+    st.subheader("📊 Action Summary")
 
-        if not df.empty:
-            selected_action = st.selectbox(
-                "Filter by Action",
-                ["All"] + sorted(df["Action"].dropna().unique().tolist())
-            )
+    summary_df = pd.DataFrame(
+        [{"Action": k, "Count": v} for k, v in action_counts.items()]
+    )
 
-            search = st.text_input("Search Document No / Document Name")
+    if not summary_df.empty:
+        st.bar_chart(summary_df.set_index("Action"))
+        st.dataframe(summary_df, use_container_width=True)
+    else:
+        st.info("No open or on-progress documents found.")
 
-            filtered_df = df.copy()
+    st.divider()
 
-            if selected_action != "All":
-                filtered_df = filtered_df[filtered_df["Action"] == selected_action]
+    st.subheader("📋 Document Action List")
 
-            if search:
-                filtered_df = filtered_df[
-                    filtered_df.astype(str).apply(
-                        lambda x: x.str.contains(search, case=False, na=False)
-                    ).any(axis=1)
-                ]
+    selected_action = st.selectbox(
+        "Filter by Action",
+        ["All"] + sorted(df["Action"].dropna().unique().tolist())
+    )
 
-            st.dataframe(filtered_df, use_container_width=True, height=450)
+    search = st.text_input("Search Document No / Document Name")
 
-        st.download_button(
-            label="⬇️ Download Excel Report",
-            data=report,
-            file_name="Open_On_Process_Compare.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    filtered_df = df.copy()
+
+    if selected_action != "All":
+        filtered_df = filtered_df[filtered_df["Action"] == selected_action]
+
+    if search:
+        filtered_df = filtered_df[
+            filtered_df.astype(str).apply(
+                lambda x: x.str.contains(search, case=False, na=False)
+            ).any(axis=1)
+        ]
+
+    st.dataframe(filtered_df, use_container_width=True, height=450)
+
+    st.download_button(
+        label="⬇️ Download Excel Report",
+        data=st.session_state.report,
+        file_name="Open_On_Process_Compare.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 else:
-    st.info("Please upload both Excel files to generate the dashboard.")
+    st.info("Please upload both Excel files and click Generate Dashboard.")
