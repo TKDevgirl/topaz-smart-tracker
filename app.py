@@ -4,260 +4,110 @@ from openpyxl.styles import Font, PatternFill
 from datetime import datetime
 from io import BytesIO
 import pandas as pd
+import altair as alt
 
-st.set_page_config(
-    page_title="Topaz Smart Document Tracker",
-    page_icon="💎",
-    layout="wide"
-)
+st.set_page_config(page_title="Topaz Smart Document Tracker V4", page_icon="💎", layout="wide")
 
-tracking_sheets = ["RFA", "RFI"]
-takenaka_sheets = ["MAT_ICT", "DWG_ICT", "MTS_ICT"]
+TRACKING_SHEETS = ["RFA", "RFI"]
+TAKENAKA_SHEETS = ["MAT_ICT", "DWG_ICT", "MTS_ICT"]
 
-# =========================
-# STYLE
-# =========================
+# -----------------------------
+# Theme / CSS
+# -----------------------------
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-}
-
-.stApp {
-    background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 55%, #f8fafc 100%);
-    color: #0f172a;
-}
-
-.block-container {
-    max-width: 1550px;
-    padding-top: 1.4rem;
-    padding-bottom: 3rem;
-}
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+.stApp { background: #f4f7fb; color: #0f172a; }
+.block-container { max-width: 1580px; padding-top: 1.2rem; padding-bottom: 3rem; }
 
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #071226 0%, #0f172a 55%, #111827 100%);
+    background: linear-gradient(180deg, #061124 0%, #0f172a 72%, #111827 100%);
 }
+[data-testid="stSidebar"] * { color: white; }
 
-[data-testid="stSidebar"] * {
-    color: white;
-}
-
-.sidebar-logo {
-    font-size: 28px;
-    font-weight: 900;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-}
-
-.sidebar-sub {
-    color: #c7d2fe;
-    font-size: 13px;
-    margin-bottom: 24px;
-}
-
+.logo { font-size: 30px; font-weight: 900; margin-bottom: 2px; }
+.logo-sub { color:#c7d2fe; font-size: 13px; margin-bottom: 22px; }
 .user-card {
-    padding: 16px;
-    border-radius: 18px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.12);
-    margin-bottom: 18px;
+    padding: 16px; border-radius: 18px; background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.14); margin-bottom: 18px;
 }
-
 .nav-item {
-    padding: 10px 12px;
-    border-radius: 12px;
-    margin: 6px 0;
-    background: rgba(255,255,255,0.04);
+    padding: 11px 13px; border-radius: 13px; margin: 7px 0;
+    background: rgba(255,255,255,.05); font-weight: 750;
+}
+.nav-active {
+    padding: 11px 13px; border-radius: 13px; margin: 7px 0;
+    background: linear-gradient(90deg,#4f46e5,#7c3aed); font-weight: 850;
 }
 
 .hero {
-    background: linear-gradient(90deg, #0b1b4d 0%, #172554 52%, #1e3a8a 100%);
-    color: white;
-    border-radius: 22px;
-    padding: 26px 30px;
-    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.18);
-    margin-bottom: 18px;
+    background: radial-gradient(circle at top right, rgba(96,165,250,.42), transparent 28%),
+                linear-gradient(90deg,#071226 0%, #0b1b4d 48%, #172554 100%);
+    color: white; border-radius: 26px; padding: 28px 32px;
+    box-shadow: 0 20px 40px rgba(15,23,42,.20); margin-bottom: 18px;
+}
+.hero-grid { display:grid; grid-template-columns:1fr auto; gap:20px; align-items:center; }
+.hero-title { font-size: 38px; font-weight: 950; margin-bottom: 7px; }
+.hero-sub { color:#dbeafe; font-size:15px; }
+.pill {
+    background: rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22);
+    border-radius: 999px; padding: 10px 16px; font-weight: 850;
 }
 
-.hero-grid {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 20px;
-    align-items: center;
+.notice {
+    padding: 15px 18px; border-radius: 18px; margin: 16px 0 18px 0; font-weight: 700;
+    background: linear-gradient(90deg,#eff6ff,#ffffff); border:1px solid #bfdbfe; color:#1d4ed8;
 }
-
-.hero-title {
-    font-size: 38px;
-    font-weight: 900;
-    margin-bottom: 6px;
-}
-
-.hero-sub {
-    color: #dbeafe;
-    font-size: 15px;
-}
-
-.phase-pill {
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.22);
-    padding: 10px 16px;
-    border-radius: 999px;
-    font-weight: 800;
-    text-align: center;
-}
-
-.info-box {
-    padding: 15px 18px;
-    border-radius: 16px;
-    background: linear-gradient(90deg, #eff6ff, #ffffff);
-    border: 1px solid #bfdbfe;
-    color: #1d4ed8;
-    margin: 16px 0 18px 0;
-    font-weight: 650;
-}
-
-.admin-box {
-    padding: 16px;
-    border-radius: 18px;
-    background: linear-gradient(90deg, #f0fdf4, #ffffff);
-    border: 1px solid #bbf7d0;
-    color: #166534;
-    margin: 16px 0;
-    font-weight: 650;
+.admin {
+    padding: 15px 18px; border-radius: 18px; margin: 16px 0 18px 0; font-weight: 700;
+    background: linear-gradient(90deg,#ecfdf5,#ffffff); border:1px solid #bbf7d0; color:#166534;
 }
 
 .kpi-card {
-    border-radius: 22px;
-    background: rgba(255,255,255,0.95);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
-    border: 1px solid #e2e8f0;
-    padding: 22px;
-    min-height: 158px;
-    position: relative;
-    overflow: hidden;
+    background: rgba(255,255,255,.96); border: 1px solid #e2e8f0; border-radius: 24px;
+    padding: 22px; box-shadow: 0 14px 32px rgba(15,23,42,.08);
+    min-height: 160px; position: relative; overflow:hidden; transition: .18s ease;
 }
-
-.kpi-card::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 5px;
-    background: var(--accent);
-}
-
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 18px 38px rgba(15,23,42,.12); }
+.kpi-card:after { content:""; position:absolute; left:0; right:0; bottom:0; height:5px; background:var(--accent); }
 .kpi-icon {
-    height: 48px;
-    width: 48px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--soft);
-    color: var(--accent);
-    font-size: 24px;
-    margin-bottom: 10px;
+    width: 50px; height: 50px; border-radius: 17px; display:flex; align-items:center; justify-content:center;
+    background: var(--soft); color: var(--accent); font-size:24px; margin-bottom:10px;
 }
-
-.kpi-title {
-    color: #64748b;
-    font-size: 13px;
-    font-weight: 800;
-}
-
-.kpi-value {
-    font-size: 36px;
-    font-weight: 900;
-    color: #0f172a;
-    line-height: 1.1;
-    margin: 6px 0;
-}
-
-.kpi-sub {
-    color: #64748b;
-    font-size: 13px;
-}
+.kpi-title { color:#64748b; font-size:13px; font-weight:850; }
+.kpi-value { font-size: 38px; font-weight: 950; color:#0f172a; line-height:1.05; margin:7px 0; }
+.kpi-sub { color:#64748b; font-size:13px; }
 
 .panel {
-    background: rgba(255,255,255,0.95);
-    border: 1px solid #e2e8f0;
-    border-radius: 24px;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
-    padding: 22px;
-    margin-bottom: 18px;
+    background: rgba(255,255,255,.97); border:1px solid #e2e8f0; border-radius: 24px;
+    box-shadow: 0 14px 32px rgba(15,23,42,.07); padding: 22px; margin-bottom: 18px;
 }
-
-.panel-title {
-    font-size: 21px;
-    font-weight: 900;
-    color: #0f172a;
-    margin-bottom: 14px;
-}
-
-.project-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0 6px;
-    font-size: 14px;
-}
-
-.project-table td {
-    padding: 9px 10px;
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.project-table td:first-child {
-    font-weight: 900;
-    color: #1e3a8a;
-    border-left: 1px solid #e2e8f0;
-    border-radius: 10px 0 0 10px;
-    width: 40%;
-}
-
-.project-table td:last-child {
-    border-right: 1px solid #e2e8f0;
-    border-radius: 0 10px 10px 0;
-}
-
-.health-box {
-    background: linear-gradient(90deg, #fee2e2, #fff7ed);
-    border: 1px solid #fca5a5;
-    color: #991b1b;
-    padding: 14px;
-    border-radius: 16px;
-    font-weight: 800;
-    margin-top: 12px;
-}
+.panel-title { font-size: 21px; font-weight: 950; color:#0f172a; margin-bottom: 14px; }
 
 .quick-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    border-radius: 14px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    margin-bottom: 8px;
+    display:flex; justify-content:space-between; align-items:center; padding:12px;
+    border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0; margin-bottom:8px;
 }
+.count-pill { padding:4px 10px; border-radius:999px; font-weight:900; background:#dbeafe; color:#1d4ed8; }
 
-.count-pill {
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-weight: 900;
-    background: #dbeafe;
-    color: #1d4ed8;
+.health {
+    background: linear-gradient(90deg,#fee2e2,#fff7ed); border:1px solid #fca5a5;
+    color:#991b1b; padding:14px; border-radius:16px; font-weight:900; margin-top:12px;
 }
+.project-table { width:100%; border-collapse:separate; border-spacing:0 6px; font-size:14px; }
+.project-table td { padding:9px 10px; background:#f8fafc; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; }
+.project-table td:first-child { font-weight:900; color:#1e3a8a; border-left:1px solid #e2e8f0; border-radius:10px 0 0 10px; width:42%; }
+.project-table td:last-child { border-right:1px solid #e2e8f0; border-radius:0 10px 10px 0; }
+
+.footer-note { color:#64748b; font-size:12px; margin-top:6px; }
 </style>
 """, unsafe_allow_html=True)
 
-# =========================
-# LOGIN
-# =========================
+# -----------------------------
+# Login
+# -----------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "role" not in st.session_state:
@@ -266,8 +116,8 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 
 with st.sidebar:
-    st.markdown('<div class="sidebar-logo">💎 TOPAZ</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-sub">Smart Document Tracker v3.0</div>', unsafe_allow_html=True)
+    st.markdown('<div class="logo">💎 TOPAZ</div>', unsafe_allow_html=True)
+    st.markdown('<div class="logo-sub">Smart Document Tracker V4 Professional</div>', unsafe_allow_html=True)
 
     if not st.session_state.logged_in:
         username = st.text_input("Username")
@@ -277,15 +127,12 @@ with st.sidebar:
             st.session_state.logged_in = True
             st.rerun()
     else:
-        st.markdown(
-            f"""
-            <div class="user-card">
-                <b>👤 User</b><br>{st.session_state.username}<br><br>
-                <b>🔑 Role</b><br>{st.session_state.role.title()}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        st.markdown(f"""
+        <div class="user-card">
+            <b>👤 User</b><br>{st.session_state.username}<br><br>
+            <b>🔑 Role</b><br>{st.session_state.role.title()}
+        </div>
+        """, unsafe_allow_html=True)
         if st.button("Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.role = "viewer"
@@ -293,30 +140,55 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    st.markdown('<div class="nav-item">🏠 Dashboard</div>', unsafe_allow_html=True)
+    st.markdown('<div class="nav-active">🏠 Dashboard</div>', unsafe_allow_html=True)
     st.markdown('<div class="nav-item">📋 Documents</div>', unsafe_allow_html=True)
     st.markdown('<div class="nav-item">📊 Action Summary</div>', unsafe_allow_html=True)
-    st.markdown('<div class="nav-item">⬇ Download Report</div>', unsafe_allow_html=True)
+    st.markdown('<div class="nav-item">📡 ICT Progress</div>', unsafe_allow_html=True)
+    st.markdown('<div class="nav-item">⬇ Export Report</div>', unsafe_allow_html=True)
+    st.divider()
+    st.caption("© 2026 Topaz Smart Tracker")
 
-# =========================
-# FUNCTIONS
-# =========================
+# -----------------------------
+# Data functions
+# -----------------------------
+def norm_text(value):
+    return str(value or "").strip()
+
+def norm_upper(value):
+    return norm_text(value).upper()
+
 def base_doc_no(doc_no):
-    doc_no = str(doc_no).strip()
+    doc_no = norm_text(doc_no)
     parts = doc_no.split("-")
-    if parts[-1].isdigit() and len(parts[-1]) == 2:
+    if parts and parts[-1].isdigit() and len(parts[-1]) == 2:
         return "-".join(parts[:-1])
     return doc_no
+
+def normalize_action(action):
+    a = norm_upper(action)
+    if "RETURNED" in a:
+        return "RETURNED BY NV5 / NEED RESUBMIT"
+    if "OVERDUE" in a:
+        return "OVERDUE / FOLLOW UP"
+    if "UPDATE" in a or "CLOSED" in a:
+        return "UPDATE TRACKING TO CLOSED"
+    if "OPEN" in a and ("PROCESS" in a or "PROGRESS" in a):
+        return "OPEN & ON PROCESS"
+    if "NOT FOUND" in a:
+        return "NOT FOUND IN TAKENAKA SOURCE"
+    if "OPEN" in a:
+        return "OPEN"
+    return "CHECK"
 
 def read_takenaka(takenaka_file):
     wb = load_workbook(takenaka_file, data_only=True)
     data = {}
 
-    for sheet in takenaka_sheets:
+    for sheet in TAKENAKA_SHEETS:
         if sheet not in wb.sheetnames:
             continue
-
         ws = wb[sheet]
+
         for row in range(11, ws.max_row + 1):
             doc_no = ws[f"E{row}"].value
             if not doc_no or "DETH-NSC" not in str(doc_no):
@@ -329,8 +201,39 @@ def read_takenaka(takenaka_file):
                 "Takenaka Status 2": ws[f"AB{row}"].value,
                 "Takenaka Status 3": ws[f"AC{row}"].value,
             }
-
     return data
+
+def classify_action(src):
+    if not src:
+        return "NOT FOUND IN TAKENAKA SOURCE"
+
+    s1 = norm_upper(src.get("Takenaka Status 1"))
+    s2 = norm_upper(src.get("Takenaka Status 2"))
+    s3 = norm_upper(src.get("Takenaka Status 3"))
+
+    if s1 == "CLOSED" or s1 == "CLOSE":
+        return "UPDATE TRACKING TO CLOSED"
+    if "RETURNED" in s1 or "RETURNED" in s2:
+        return "RETURNED BY NV5 / NEED RESUBMIT"
+    if "OVERDUE" in s3:
+        return "OVERDUE / FOLLOW UP"
+    if "OPEN" in s1 and ("ON PROCESS" in s2 or "ON PROGRESS" in s2):
+        return "OPEN & ON PROCESS"
+    if "OPEN" in s1:
+        return "OPEN"
+    return "CHECK"
+
+def should_include_tracking(status, info):
+    status_u = norm_upper(status)
+    info_u = norm_upper(info)
+
+    return (
+        "OPEN" in status_u
+        or "ON PROGRESS" in status_u
+        or "ON PROCESS" in status_u
+        or "ON PROGRESS" in info_u
+        or "ON PROCESS" in info_u
+    )
 
 def generate_report(tracking_file, takenaka_file):
     takenaka_map = read_takenaka(takenaka_file)
@@ -348,30 +251,34 @@ def generate_report(tracking_file, takenaka_file):
     ]
     report_ws.append(headers)
 
+    fills = {
+        "UPDATE TRACKING TO CLOSED": PatternFill(fill_type="solid", fgColor="C6EFCE"),
+        "OPEN & ON PROCESS": PatternFill(fill_type="solid", fgColor="FFEB9C"),
+        "OPEN": PatternFill(fill_type="solid", fgColor="BDD7EE"),
+        "OVERDUE / FOLLOW UP": PatternFill(fill_type="solid", fgColor="FFC7CE"),
+        "RETURNED BY NV5 / NEED RESUBMIT": PatternFill(fill_type="solid", fgColor="FFC7CE"),
+        "NOT FOUND IN TAKENAKA SOURCE": PatternFill(fill_type="solid", fgColor="FFC7CE"),
+        "CHECK": PatternFill(fill_type="solid", fgColor="D9EAF7"),
+    }
+
     for cell in report_ws[1]:
         cell.font = Font(bold=True)
         cell.fill = PatternFill(fill_type="solid", fgColor="D9EAF7")
-
-    green = PatternFill(fill_type="solid", fgColor="C6EFCE")
-    yellow = PatternFill(fill_type="solid", fgColor="FFEB9C")
-    red = PatternFill(fill_type="solid", fgColor="FFC7CE")
-    blue = PatternFill(fill_type="solid", fgColor="BDD7EE")
 
     rows = []
     total_docs = 0
     focus_docs = 0
 
-    for sheet in tracking_sheets:
+    for sheet in TRACKING_SHEETS:
         if sheet not in wb.sheetnames:
             continue
 
         ws = wb[sheet]
-
         for row in range(2, ws.max_row + 1):
             doc_no = ws[f"B{row}"].value
             doc_name = ws[f"D{row}"].value
 
-            # Tracking structure: E = Status, F = Info
+            # Correct Tracking file structure: E = Status, F = Info
             tracking_status = ws[f"E{row}"].value
             info = ws[f"F{row}"].value
 
@@ -380,47 +287,16 @@ def generate_report(tracking_file, takenaka_file):
 
             total_docs += 1
 
-            status_text = str(tracking_status or "").strip().upper()
-            info_text = str(info or "").strip().upper()
-
-            if (
-                "OPEN" not in status_text
-                and "ON PROGRESS" not in status_text
-                and "ON PROCESS" not in status_text
-                and "ON PROGRESS" not in info_text
-                and "ON PROCESS" not in info_text
-            ):
+            if not should_include_tracking(tracking_status, info):
                 continue
 
             focus_docs += 1
             key = base_doc_no(doc_no)
+            src = takenaka_map.get(key)
+            action = classify_action(src)
             checked_time = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
-            if key in takenaka_map:
-                src = takenaka_map[key]
-                s1 = str(src["Takenaka Status 1"] or "").strip().upper()
-                s2 = str(src["Takenaka Status 2"] or "").strip().upper()
-                s3 = str(src["Takenaka Status 3"] or "").strip().upper()
-
-                if s1 == "CLOSED":
-                    action = "UPDATE TRACKING TO CLOSED"
-                    fill = green
-                elif s1 == "RETURNED":
-                    action = "RETURNED BY NV5 / NEED RESUBMIT"
-                    fill = red
-                elif s3 == "OVERDUE":
-                    action = "OVERDUE / FOLLOW UP"
-                    fill = red
-                elif s1 == "OPEN" and s2 == "ON PROCESS":
-                    action = "OPEN & ON PROCESS"
-                    fill = yellow
-                elif s1 == "OPEN":
-                    action = "OPEN"
-                    fill = blue
-                else:
-                    action = "CHECK"
-                    fill = blue
-
+            if src:
                 new_row = [
                     sheet, doc_no, doc_name, tracking_status, info,
                     src["Takenaka Sheet"], src["Takenaka Doc No"],
@@ -428,15 +304,14 @@ def generate_report(tracking_file, takenaka_file):
                     action, checked_time
                 ]
             else:
-                action = "NOT FOUND IN TAKENAKA SOURCE"
-                fill = red
                 new_row = [
                     sheet, doc_no, doc_name, tracking_status, info,
-                    "", "", "", "", "", action, checked_time
+                    "", "", "", "", "",
+                    action, checked_time
                 ]
 
             report_ws.append(new_row)
-            report_ws[f"K{report_ws.max_row}"].fill = fill
+            report_ws[f"K{report_ws.max_row}"].fill = fills.get(action, fills["CHECK"])
 
             rows.append({
                 "Tracking Sheet": new_row[0],
@@ -444,6 +319,7 @@ def generate_report(tracking_file, takenaka_file):
                 "Document Name": new_row[2],
                 "Tracking Status": new_row[3],
                 "Info": new_row[4],
+                "Takenaka Sheet": new_row[5],
                 "Takenaka Status 1": new_row[7],
                 "Takenaka Status 2": new_row[8],
                 "Takenaka Status 3": new_row[9],
@@ -465,43 +341,41 @@ def generate_report(tracking_file, takenaka_file):
 
     return output, total_docs, focus_docs, rows
 
-# =========================
-# SESSION STATE
-# =========================
+# -----------------------------
+# Session state
+# -----------------------------
 defaults = {
     "result_df": None,
     "report": None,
     "total_docs": 0,
     "focus_docs": 0,
-    "action_counts": {}
+    "action_counts": {},
+    "last_updated": None
 }
-for k, v in defaults.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
+for key, value in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
-# =========================
-# HERO
-# =========================
-st.markdown(
-    """
-    <div class="hero">
-        <div class="hero-grid">
-            <div>
-                <div class="hero-title">💎 Topaz Smart Document Tracker</div>
-                <div class="hero-sub">TOPAZ BKK1 | ICT Project Dashboard | Phase 1A — NTP1</div>
-            </div>
-            <div class="phase-pill">Data control dashboard</div>
+# -----------------------------
+# Hero
+# -----------------------------
+st.markdown("""
+<div class="hero">
+    <div class="hero-grid">
+        <div>
+            <div class="hero-title">💎 Topaz Smart Document Tracker</div>
+            <div class="hero-sub">TOPAZ BKK1 | ICT Project Dashboard | Phase 1A — NTP1</div>
         </div>
+        <div class="phase-pill">Data control dashboard</div>
     </div>
-    """,
-    unsafe_allow_html=True
-)
+</div>
+""", unsafe_allow_html=True)
 
-# =========================
-# UPLOAD
-# =========================
+# -----------------------------
+# Upload
+# -----------------------------
 if st.session_state.role == "admin":
-    st.markdown('<div class="admin-box">👩‍💼 Admin mode: Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="admin">👩‍💼 Admin mode: Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
 
     up1, up2, up3 = st.columns([1, 1, 0.8])
     with up1:
@@ -518,6 +392,7 @@ if st.session_state.role == "admin":
             report, total_docs, focus_docs, rows = generate_report(tracking_file, takenaka_file)
 
         df = pd.DataFrame(rows)
+        df["Action"] = df["Action"].apply(normalize_action)
         action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
 
         st.session_state.result_df = df
@@ -525,16 +400,16 @@ if st.session_state.role == "admin":
         st.session_state.total_docs = total_docs
         st.session_state.focus_docs = focus_docs
         st.session_state.action_counts = action_counts
+        st.session_state.last_updated = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
         st.rerun()
-
 else:
-    st.markdown('<div class="info-box">ℹ️ Viewer mode: only Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="notice">ℹ️ Viewer mode: only Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
 
-# =========================
-# DASHBOARD
-# =========================
+# -----------------------------
+# Dashboard
+# -----------------------------
 if st.session_state.result_df is not None:
-    df = st.session_state.result_df
+    df = st.session_state.result_df.copy()
     action_counts = st.session_state.action_counts
 
     open_process = action_counts.get("OPEN & ON PROCESS", 0)
@@ -543,8 +418,9 @@ if st.session_state.result_df is not None:
     overdue = action_counts.get("OVERDUE / FOLLOW UP", 0)
     not_found = action_counts.get("NOT FOUND IN TAKENAKA SOURCE", 0)
     check = action_counts.get("CHECK", 0)
+    open_only = action_counts.get("OPEN", 0)
 
-    st.success("Dashboard generated successfully ✅")
+    st.success(f"Dashboard generated successfully ✅ | Last updated: {st.session_state.last_updated}")
 
     k1, k2, k3, k4, k5 = st.columns(5)
     cards = [
@@ -554,19 +430,17 @@ if st.session_state.result_df is not None:
         ("🔄", "Need Update", update_closed, "Update tracking", "#f97316", "#ffedd5"),
         ("⚠", "Overdue", overdue, "Follow up", "#ef4444", "#fee2e2"),
     ]
+
     for col, (icon, title, value, sub, accent, soft) in zip([k1, k2, k3, k4, k5], cards):
         with col:
-            st.markdown(
-                f"""
-                <div class="kpi-card" style="--accent:{accent}; --soft:{soft};">
-                    <div class="kpi-icon">{icon}</div>
-                    <div class="kpi-title">{title}</div>
-                    <div class="kpi-value">{value}</div>
-                    <div class="kpi-sub">{sub}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            st.markdown(f"""
+            <div class="kpi-card" style="--accent:{accent}; --soft:{soft};">
+                <div class="kpi-icon">{icon}</div>
+                <div class="kpi-title">{title}</div>
+                <div class="kpi-value">{value}</div>
+                <div class="kpi-sub">{sub}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
     st.write("")
 
@@ -574,41 +448,46 @@ if st.session_state.result_df is not None:
 
     with chart_col:
         st.markdown('<div class="panel"><div class="panel-title">📊 Action Summary</div>', unsafe_allow_html=True)
+
         summary_df = pd.DataFrame([{"Action": k, "Count": v} for k, v in action_counts.items()])
         if not summary_df.empty:
-            st.bar_chart(summary_df.set_index("Action"))
+            chart = (
+                alt.Chart(summary_df)
+                .mark_bar(cornerRadiusTopLeft=8, cornerRadiusTopRight=8)
+                .encode(
+                    x=alt.X("Action:N", sort="-y", axis=alt.Axis(labelAngle=-30)),
+                    y=alt.Y("Count:Q"),
+                    tooltip=["Action", "Count"]
+                )
+                .properties(height=300)
+            )
+            st.altair_chart(chart, use_container_width=True)
             st.dataframe(summary_df, use_container_width=True, hide_index=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with info_col:
-        st.markdown(
-            """
-            <div class="panel">
-                <div class="panel-title">🏗 Project Information</div>
-                <table class="project-table">
-                    <tr><td>Discipline</td><td>ICT</td></tr>
-                    <tr><td>Consultant</td><td>NV5</td></tr>
-                    <tr><td>Contractor</td><td>ByteBridge</td></tr>
-                    <tr><td>Current Phase</td><td>Phase 1A (NTP1)</td></tr>
-                    <tr><td>Current Focus</td><td>Fiber Tray / ODF / PDU</td></tr>
-                    <tr><td>Project</td><td>TOPAZ BKK1</td></tr>
-                    <tr><td>Client</td><td>TTI</td></tr>
-                </table>
-            """,
-            unsafe_allow_html=True
-        )
+        st.markdown("""
+        <div class="panel">
+            <div class="panel-title">🏗 Project Information</div>
+            <table class="project-table">
+                <tr><td>Discipline</td><td>ICT</td></tr>
+                <tr><td>Consultant</td><td>NV5</td></tr>
+                <tr><td>Contractor</td><td>ByteBridge</td></tr>
+                <tr><td>Current Phase</td><td>Phase 1A (NTP1)</td></tr>
+                <tr><td>Current Focus</td><td>Fiber Tray / ODF / PDU</td></tr>
+                <tr><td>Project</td><td>TOPAZ BKK1</td></tr>
+                <tr><td>Client</td><td>TTI</td></tr>
+            </table>
+        """, unsafe_allow_html=True)
 
         urgent = returned + overdue + not_found
-        st.markdown(
-            f"""
-            <div class="health-box">
+        st.markdown(f"""
+            <div class="health">
                 🚨 Project Health: Attention<br>
                 {urgent} items require follow-up action.
             </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        </div>
+        """, unsafe_allow_html=True)
 
     quick_col, progress_col = st.columns([1, 2])
 
@@ -620,12 +499,10 @@ if st.session_state.result_df is not None:
             ("Overdue follow up", overdue),
             ("Not found in Takenaka", not_found),
             ("Check manually", check),
+            ("Open only", open_only),
         ]
         for label, count in quick_items:
-            st.markdown(
-                f'<div class="quick-row"><span>{label}</span><span class="count-pill">{count}</span></div>',
-                unsafe_allow_html=True
-            )
+            st.markdown(f'<div class="quick-row"><span>{label}</span><span class="count-pill">{count}</span></div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with progress_col:
