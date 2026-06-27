@@ -6,7 +6,7 @@ from io import BytesIO
 import pandas as pd
 
 st.set_page_config(
-    page_title="TOPAZ BKK1 ICT Dashboard",
+    page_title="Topaz Smart Document Tracker",
     page_icon="💎",
     layout="wide"
 )
@@ -14,96 +14,62 @@ st.set_page_config(
 tracking_sheets = ["RFA", "RFI"]
 takenaka_sheets = ["MAT_ICT", "DWG_ICT", "MTS_ICT"]
 
+# =========================
+# STYLE
+# =========================
 st.markdown("""
 <style>
-.stApp { background: #050816; color: white; }
-[data-testid="stSidebar"] { background: #061124; }
-[data-testid="stSidebar"] * { color: white; }
-.block-container { padding-top: 1rem; max-width: 1500px; }
-
-.header {
-    background: linear-gradient(90deg,#0b1b4d,#111a5c);
-    border: 1px solid #243b82;
-    border-radius: 8px;
-    padding: 14px;
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    text-align: center;
-    font-weight: 900;
-    margin-bottom: 18px;
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
 }
-
-.title {
-    font-size: 32px;
-    font-weight: 900;
-    margin-bottom: 6px;
+[data-testid="stSidebar"] * {
+    color: white;
 }
-
-.subtitle {
-    color: #a5b4fc;
-    margin-bottom: 18px;
-}
-
-.info {
-    background: #0b1b4d;
-    border: 1px solid #3b82f6;
-    padding: 14px;
-    border-radius: 8px;
-    margin-bottom: 18px;
-}
-
-.kpi {
-    background: linear-gradient(180deg,#0f1b3d,#0b132b);
-    border: 1px solid #263b75;
-    border-radius: 14px;
-    padding: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,.25);
-    min-height: 145px;
-}
-
-.kpi-title { font-size: 14px; color: #bfdbfe; font-weight: 800; }
-.kpi-value { font-size: 38px; font-weight: 900; margin: 8px 0; }
-.kpi-sub { color: #94a3b8; font-size: 13px; }
-
-.panel {
-    background: #0b132b;
-    border: 1px solid #263b75;
-    border-radius: 14px;
-    padding: 18px;
-    margin-bottom: 18px;
-}
-
-.panel-title {
-    font-size: 20px;
-    font-weight: 900;
-    margin-bottom: 12px;
-}
-
-.health {
-    background: linear-gradient(90deg,#7f1d1d,#450a0a);
-    border: 1px solid #ef4444;
-    border-radius: 10px;
-    padding: 14px;
+.main-title {
+    font-size: 40px;
     font-weight: 800;
+    color: #172554;
 }
-
-.project-table {
-    width: 100%;
-    border-collapse: collapse;
+.sub-title {
+    color: #64748b;
+    font-size: 15px;
 }
-.project-table td {
-    border: 1px solid #263b75;
-    padding: 7px;
+.info-box {
+    padding: 18px;
+    border-radius: 14px;
+    background: linear-gradient(90deg, #eff6ff, #f8fafc);
+    border: 1px solid #bfdbfe;
+    margin: 20px 0;
 }
-.project-table td:first-child {
-    font-weight: 900;
-    color: #dbeafe;
+.kpi-card {
+    padding: 24px;
+    border-radius: 18px;
+    background: white;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e5e7eb;
+}
+.kpi-title {
+    font-size: 14px;
+    color: #64748b;
+}
+.kpi-value {
+    font-size: 34px;
+    font-weight: 800;
+    color: #111827;
+}
+.badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
 }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ================= LOGIN =================
+# =========================
+# LOGIN
+# =========================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "role" not in st.session_state:
@@ -118,14 +84,21 @@ with st.sidebar:
 
     if not st.session_state.logged_in:
         username = st.text_input("Username")
+
         if st.button("Login"):
             st.session_state.username = username.strip()
-            st.session_state.role = "admin" if username.strip().lower() == "pavinee" else "viewer"
+
+            if username.strip().lower() == "pavinee":
+                st.session_state.role = "admin"
+            else:
+                st.session_state.role = "viewer"
+
             st.session_state.logged_in = True
             st.rerun()
     else:
-        st.markdown(f"👤 *User:* {st.session_state.username}")
-        st.markdown(f"🔑 *Role:* {st.session_state.role.title()}")
+        st.markdown(f"👤 **User:** {st.session_state.username}")
+        st.markdown(f"🔑 **Role:** {st.session_state.role.title()}")
+
         if st.button("Logout"):
             st.session_state.logged_in = False
             st.session_state.role = "viewer"
@@ -138,10 +111,12 @@ with st.sidebar:
     st.markdown("📊 Action Summary")
     st.markdown("⬇ Download Report")
     st.divider()
-    st.caption("Topaz Smart Document Tracker v3.0")
+    st.caption("Topaz Smart Document Tracker v2.0")
 
 
-# ================= FUNCTIONS =================
+# =========================
+# FUNCTIONS
+# =========================
 def base_doc_no(doc_no):
     doc_no = str(doc_no).strip()
     parts = doc_no.split("-")
@@ -162,10 +137,13 @@ def read_takenaka(takenaka_file):
 
         for row in range(11, ws.max_row + 1):
             doc_no = ws[f"E{row}"].value
+
             if not doc_no or "DETH-NSC" not in str(doc_no):
                 continue
 
-            data[base_doc_no(doc_no)] = {
+            key = base_doc_no(doc_no)
+
+            data[key] = {
                 "Takenaka Sheet": sheet,
                 "Takenaka Doc No": doc_no,
                 "Takenaka Status 1": ws[f"AA{row}"].value,
@@ -178,19 +156,28 @@ def read_takenaka(takenaka_file):
 
 def generate_report(tracking_file, takenaka_file):
     takenaka_map = read_takenaka(takenaka_file)
-    wb = load_workbook(tracking_file)
 
+    wb = load_workbook(tracking_file)
     report_sheet = "Open_On_Process_Compare"
+
     if report_sheet in wb.sheetnames:
         del wb[report_sheet]
 
     report_ws = wb.create_sheet(report_sheet)
 
     headers = [
-        "Tracking Sheet", "Document No", "Document Name", "Tracking Status", "Info",
-        "Takenaka Sheet", "Takenaka Doc No",
-        "Takenaka Status 1", "Takenaka Status 2", "Takenaka Status 3",
-        "Action", "Checked Time"
+        "Tracking Sheet",
+        "Document No",
+        "Document Name",
+        "Tracking Status",
+        "Info",
+        "Takenaka Sheet",
+        "Takenaka Doc No",
+        "Takenaka Status 1",
+        "Takenaka Status 2",
+        "Takenaka Status 3",
+        "Action",
+        "Checked Time",
     ]
 
     report_ws.append(headers)
@@ -206,7 +193,7 @@ def generate_report(tracking_file, takenaka_file):
 
     rows = []
     total_docs = 0
-    focus_docs = 0
+    open_docs = 0
 
     for sheet in tracking_sheets:
         if sheet not in wb.sheetnames:
@@ -217,35 +204,33 @@ def generate_report(tracking_file, takenaka_file):
         for row in range(2, ws.max_row + 1):
             doc_no = ws[f"B{row}"].value
             doc_name = ws[f"D{row}"].value
-
-            # Tracking file columns:
-            # E = Status, F = Info
-            tracking_status = ws[f"E{row}"].value
-            info = ws[f"F{row}"].value
+           tracking_status = ws[f"E{row}"].value
+           info = ws[f"F{row}"].value
 
             if not doc_no:
                 continue
 
             total_docs += 1
 
-            status_text = str(tracking_status or "").strip().upper()
+            tracking_status_text = str(tracking_status or "").strip().upper()
             info_text = str(info or "").strip().upper()
 
             if (
-                "OPEN" not in status_text
-                and "ON PROGRESS" not in status_text
-                and "ON PROCESS" not in status_text
+                "OPEN" not in tracking_status_text
+                and "ON PROGRESS" not in tracking_status_text
+                and "ON PROCESS" not in tracking_status_text
                 and "ON PROGRESS" not in info_text
                 and "ON PROCESS" not in info_text
             ):
                 continue
 
-            focus_docs += 1
+            open_docs += 1
             key = base_doc_no(doc_no)
             checked_time = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
             if key in takenaka_map:
                 src = takenaka_map[key]
+
                 s1 = str(src["Takenaka Status 1"] or "").strip().upper()
                 s2 = str(src["Takenaka Status 2"] or "").strip().upper()
                 s3 = str(src["Takenaka Status 3"] or "").strip().upper()
@@ -270,18 +255,37 @@ def generate_report(tracking_file, takenaka_file):
                     fill = blue
 
                 new_row = [
-                    sheet, doc_no, doc_name, tracking_status, info,
-                    src["Takenaka Sheet"], src["Takenaka Doc No"],
-                    src["Takenaka Status 1"], src["Takenaka Status 2"], src["Takenaka Status 3"],
-                    action, checked_time
+                    sheet,
+                    doc_no,
+                    doc_name,
+                    tracking_status,
+                    info,
+                    src["Takenaka Sheet"],
+                    src["Takenaka Doc No"],
+                    src["Takenaka Status 1"],
+                    src["Takenaka Status 2"],
+                    src["Takenaka Status 3"],
+                    action,
+                    checked_time,
                 ]
+
             else:
                 action = "NOT FOUND IN TAKENAKA SOURCE"
                 fill = red
+
                 new_row = [
-                    sheet, doc_no, doc_name, tracking_status, info,
-                    "", "", "", "", "",
-                    action, checked_time
+                    sheet,
+                    doc_no,
+                    doc_name,
+                    tracking_status,
+                    info,
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    action,
+                    checked_time,
                 ]
 
             report_ws.append(new_row)
@@ -312,37 +316,38 @@ def generate_report(tracking_file, takenaka_file):
     wb.save(output)
     output.seek(0)
 
-    return output, total_docs, focus_docs, rows
+    return output, total_docs, open_docs, rows
 
 
-# ================= SESSION =================
-defaults = {
-    "result_df": None,
-    "report": None,
-    "total_docs": 0,
-    "focus_docs": 0,
-    "action_counts": {}
-}
-for k, v in defaults.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
+# =========================
+# SESSION STATE
+# =========================
+if "result_df" not in st.session_state:
+    st.session_state.result_df = None
+    st.session_state.report = None
+    st.session_state.total_docs = 0
+    st.session_state.open_docs = 0
+    st.session_state.action_counts = {}
 
 
-# ================= HEADER =================
-st.markdown("""
-<div class="header">
-    <div>TOPAZ BKK1</div>
-    <div>ICT PROJECT DASHBOARD</div>
-    <div>PHASE 1A — NTP1</div>
-</div>
-""", unsafe_allow_html=True)
+# =========================
+# HEADER
+# =========================
+col_title, col_time = st.columns([3, 1])
 
-st.markdown('<div class="title">Project Engineer Dashboard</div>', unsafe_allow_html=True)
+with col_title:
+    st.markdown('<div class="main-title">📄 Topaz Smart Document Tracker</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Web dashboard for OPEN / ON PROGRESS documents compared with Takenaka status.</div>', unsafe_allow_html=True)
+
+with col_time:
+    st.info("Data is up to date")
 
 
-# ================= UPLOAD =================
+# =========================
+# UPLOAD AREA
+# =========================
 if st.session_state.role == "admin":
-    st.markdown('<div class="info">👩‍💼 Admin mode: Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="info-box">👩‍💼 Admin mode: Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
 
     tracking_file = st.file_uploader("1) Upload Tracking_document.xlsx", type=["xlsx"])
     takenaka_file = st.file_uploader("2) Upload Takenaka Summary.xlsx", type=["xlsx"])
@@ -350,7 +355,10 @@ if st.session_state.role == "admin":
     if tracking_file and takenaka_file:
         if st.button("🚀 Generate Dashboard", type="primary"):
             with st.spinner("Reading files and generating dashboard..."):
-                report, total_docs, focus_docs, rows = generate_report(tracking_file, takenaka_file)
+                report, total_docs, open_docs, rows = generate_report(
+                    tracking_file,
+                    takenaka_file
+                )
 
             df = pd.DataFrame(rows)
             action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
@@ -358,121 +366,93 @@ if st.session_state.role == "admin":
             st.session_state.result_df = df
             st.session_state.report = report
             st.session_state.total_docs = total_docs
-            st.session_state.focus_docs = focus_docs
+            st.session_state.open_docs = open_docs
             st.session_state.action_counts = action_counts
-            st.rerun()
+
 else:
-    st.markdown('<div class="info">ℹ️ Viewer mode: only Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="info-box">ℹ️ Viewer mode: only Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
 
 
-# ================= DASHBOARD =================
+# =========================
+# DASHBOARD
+# =========================
 if st.session_state.result_df is not None:
     df = st.session_state.result_df
     action_counts = st.session_state.action_counts
 
-    open_process = action_counts.get("OPEN & ON PROCESS", 0)
-    update_closed = action_counts.get("UPDATE TRACKING TO CLOSED", 0)
-    returned = action_counts.get("RETURNED BY NV5 / NEED RESUBMIT", 0)
-    overdue = action_counts.get("OVERDUE / FOLLOW UP", 0)
-    not_found = action_counts.get("NOT FOUND IN TAKENAKA SOURCE", 0)
+    st.success("Dashboard generated successfully ✅")
 
-    k1, k2, k3, k4, k5 = st.columns(5)
+    c1, c2, c3, c4, c5 = st.columns(5)
 
-    with k1:
+    with c1:
         st.markdown(f"""
-        <div class="kpi">
-            <div class="kpi-title">📁 Open MDR</div>
-            <div class="kpi-value">{st.session_state.focus_docs}</div>
-            <div class="kpi-sub">Tracking items awaiting review</div>
+        <div class="kpi-card">
+            <div class="kpi-title">📁 Total Documents</div>
+            <div class="kpi-value">{st.session_state.total_docs}</div>
+            <div class="kpi-title">All documents</div>
         </div>
         """, unsafe_allow_html=True)
 
-    with k2:
+    with c2:
         st.markdown(f"""
-        <div class="kpi">
-            <div class="kpi-title">📄 Pending Review</div>
-            <div class="kpi-value">{open_process}</div>
-            <div class="kpi-sub">Open and on process</div>
+        <div class="kpi-card">
+            <div class="kpi-title">🕒 Open / On Progress</div>
+            <div class="kpi-value">{st.session_state.open_docs}</div>
+            <div class="kpi-title">Documents</div>
         </div>
         """, unsafe_allow_html=True)
 
-    with k3:
+    with c3:
         st.markdown(f"""
-        <div class="kpi">
-            <div class="kpi-title">🔴 Returned</div>
-            <div class="kpi-value">{returned}</div>
-            <div class="kpi-sub">Revise and resubmit</div>
+        <div class="kpi-card">
+            <div class="kpi-title">▶ Open & On Process</div>
+            <div class="kpi-value">{action_counts.get("OPEN & ON PROCESS", 0)}</div>
+            <div class="kpi-title">Waiting review</div>
         </div>
         """, unsafe_allow_html=True)
 
-    with k4:
+    with c4:
         st.markdown(f"""
-        <div class="kpi">
+        <div class="kpi-card">
+            <div class="kpi-title">🔄 Need Update</div>
+            <div class="kpi-value">{action_counts.get("UPDATE TRACKING TO CLOSED", 0)}</div>
+            <div class="kpi-title">Update tracking</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with c5:
+        st.markdown(f"""
+        <div class="kpi-card">
             <div class="kpi-title">⚠ Overdue</div>
-            <div class="kpi-value">{overdue}</div>
-            <div class="kpi-sub">Follow-up required</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with k5:
-        st.markdown(f"""
-        <div class="kpi">
-            <div class="kpi-title">✅ Approved / Close</div>
-            <div class="kpi-value">{update_closed}</div>
-            <div class="kpi-sub">Update tracking to closed</div>
+            <div class="kpi-value">{action_counts.get("OVERDUE / FOLLOW UP", 0)}</div>
+            <div class="kpi-title">Follow up</div>
         </div>
         """, unsafe_allow_html=True)
 
     st.divider()
 
-    left, right = st.columns([2.2, 1])
+    chart_col, table_col = st.columns([1, 1])
 
-    with left:
-        st.markdown('<div class="panel"><div class="panel-title">📊 Action Summary</div>', unsafe_allow_html=True)
-        summary_df = pd.DataFrame([{"Action": k, "Count": v} for k, v in action_counts.items()])
+    with chart_col:
+        st.subheader("📊 Action Summary")
+        summary_df = pd.DataFrame(
+            [{"Action": k, "Count": v} for k, v in action_counts.items()]
+        )
+
         if not summary_df.empty:
             st.bar_chart(summary_df.set_index("Action"))
-            st.dataframe(summary_df, use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.dataframe(summary_df, use_container_width=True)
 
-    with right:
-        st.markdown("""
-        <div class="panel">
-        <div class="panel-title">Project Information</div>
-        <table class="project-table">
-            <tr><td>Discipline</td><td>ICT</td></tr>
-            <tr><td>Consultant</td><td>NV5</td></tr>
-            <tr><td>Contractor</td><td>ByteBridge</td></tr>
-            <tr><td>Current Phase</td><td>Phase 1A (NTP1)</td></tr>
-            <tr><td>Current Focus</td><td>Fiber Tray / ODF / PDU</td></tr>
-            <tr><td>Project</td><td>TOPAZ BKK1</td></tr>
-            <tr><td>Client</td><td>TTI</td></tr>
-        </table>
-        """, unsafe_allow_html=True)
+    with table_col:
+        st.subheader("🧭 Quick Action")
+        st.write("Returned by NV5:", action_counts.get("RETURNED BY NV5 / NEED RESUBMIT", 0))
+        st.write("Need update closed:", action_counts.get("UPDATE TRACKING TO CLOSED", 0))
+        st.write("Overdue follow up:", action_counts.get("OVERDUE / FOLLOW UP", 0))
+        st.write("Not found in Takenaka:", action_counts.get("NOT FOUND IN TAKENAKA SOURCE", 0))
 
-        urgent = returned + overdue + not_found
-        st.markdown(f"""
-        <div class="health">
-            🚨 Project Health: Attention<br>
-            {urgent} items require follow-up action.
-        </div>
-        </div>
-        """, unsafe_allow_html=True)
+    st.divider()
 
-    st.markdown('<div class="panel"><div class="panel-title">ICT Progress Status</div>', unsafe_allow_html=True)
-    progress_data = pd.DataFrame([
-        {"Topic": "Fiber Tray", "Status": "🟢 Working", "Meaning / Action": "Installation ongoing"},
-        {"Topic": "ODF", "Status": "🟢 Working", "Meaning / Action": "Installation ongoing"},
-        {"Topic": "PDU", "Status": "🟢 Working", "Meaning / Action": "Installation ongoing"},
-        {"Topic": "Rack", "Status": "🔵 Learning", "Meaning / Action": "Reviewing drawings, preparing site"},
-        {"Topic": "Backbone", "Status": "🔵 Learning", "Meaning / Action": "Reviewing drawings, preparing site"},
-        {"Topic": "Deviation Review", "Status": "🟢 Working", "Meaning / Action": "Installation ongoing"},
-        {"Topic": "Commissioning", "Status": "⚪ Not Start", "Meaning / Action": "Pending system completion"},
-    ])
-    st.dataframe(progress_data, use_container_width=True, hide_index=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="panel"><div class="panel-title">📋 Document Action List</div>', unsafe_allow_html=True)
+    st.subheader("📋 Document Action List")
 
     selected_action = st.selectbox(
         "Filter by Action",
@@ -493,7 +473,7 @@ if st.session_state.result_df is not None:
             ).any(axis=1)
         ]
 
-    st.dataframe(filtered_df, use_container_width=True, height=420)
+    st.dataframe(filtered_df, use_container_width=True, height=480)
 
     st.download_button(
         label="⬇️ Download Excel Report",
@@ -501,8 +481,6 @@ if st.session_state.result_df is not None:
         file_name="Open_On_Process_Compare.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 else:
     st.info("Please upload both Excel files and click Generate Dashboard.")
