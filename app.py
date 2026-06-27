@@ -205,7 +205,7 @@ def generate_report(tracking_file, takenaka_file):
             doc_no = ws[f"B{row}"].value
             doc_name = ws[f"D{row}"].value
             tracking_status = ws[f"F{row}"].value
-            info = ws[f"G{row}"].value
+            info = ws[f"F{row}"].value
 
             if not doc_no:
                 continue
@@ -214,9 +214,10 @@ def generate_report(tracking_file, takenaka_file):
 
             tracking_status_text = str(tracking_status or "").strip().upper()
             info_text = str(info or "").strip().upper()
-
             if (
-                tracking_status_text != "OPEN"
+                "OPEN" not in tracking_status_text
+                and "ON PROGRESS" not in tracking_status_text
+                and "ON PROCESS" not in tracking_status_text
                 and "ON PROGRESS" not in info_text
                 and "ON PROCESS" not in info_text
             ):
