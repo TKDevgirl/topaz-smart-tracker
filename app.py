@@ -4,6 +4,8 @@ from openpyxl.styles import Font, PatternFill
 from datetime import datetime
 from io import BytesIO
 import pandas as pd
+import base64
+import os
 
 st.set_page_config(
     page_title="Topaz Smart Document Tracker",
@@ -13,58 +15,245 @@ st.set_page_config(
 
 tracking_sheets = ["RFA", "RFI"]
 takenaka_sheets = ["MAT_ICT", "DWG_ICT", "MTS_ICT"]
+LOGO_PATH = "assets/logo.png"
 
 # =========================
-# STYLE
+# STYLE - UI ONLY
 # =========================
 st.markdown("""
 <style>
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+.stApp {
+    background: #f4f7fb;
+    color: #0f172a;
 }
+
+.block-container {
+    max-width: 1500px;
+    padding-top: 1.2rem;
+}
+
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #061124 0%, #0f172a 70%, #111827 100%);
+}
+
 [data-testid="stSidebar"] * {
     color: white;
 }
-.main-title {
-    font-size: 40px;
-    font-weight: 800;
-    color: #172554;
+
+.sidebar-logo-title {
+    font-size: 31px;
+    font-weight: 900;
+    margin-top: 8px;
+    letter-spacing: .5px;
 }
-.sub-title {
-    color: #64748b;
+
+.sidebar-subtitle {
+    color: #c7d2fe;
+    font-size: 13px;
+    margin-bottom: 20px;
+}
+
+.sidebar-card {
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.14);
+    margin: 16px 0;
+}
+
+.nav-active {
+    padding: 11px 13px;
+    border-radius: 13px;
+    margin: 8px 0;
+    background: linear-gradient(90deg,#4f46e5,#7c3aed);
+    font-weight: 800;
+}
+
+.nav-item {
+    padding: 11px 13px;
+    border-radius: 13px;
+    margin: 8px 0;
+    background: rgba(255,255,255,.06);
+    font-weight: 700;
+}
+
+.hero {
+    background: linear-gradient(90deg, #071226 0%, #0b1b4d 50%, #172554 100%);
+    border-radius: 26px;
+    padding: 30px 34px;
+    color: white;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, .22);
+    margin-bottom: 22px;
+}
+
+.hero-grid {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 22px;
+    align-items: center;
+}
+
+.hero-logo {
+    width: 86px;
+    height: 86px;
+    object-fit: contain;
+}
+
+.hero-title {
+    font-size: 40px;
+    font-weight: 950;
+    line-height: 1.05;
+    margin-bottom: 8px;
+}
+
+.hero-subtitle {
+    color: #dbeafe;
     font-size: 15px;
 }
-.info-box {
-    padding: 18px;
-    border-radius: 14px;
-    background: linear-gradient(90deg, #eff6ff, #f8fafc);
-    border: 1px solid #bfdbfe;
-    margin: 20px 0;
+
+.hero-badge {
+    padding: 12px 18px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.13);
+    border: 1px solid rgba(255,255,255,.22);
+    font-weight: 800;
+    white-space: nowrap;
 }
+
+.info-box {
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: linear-gradient(90deg, #ecfdf5, #ffffff);
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    font-weight: 800;
+    margin: 18px 0;
+}
+
+.viewer-box {
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: linear-gradient(90deg, #eff6ff, #ffffff);
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    font-weight: 800;
+    margin: 18px 0;
+}
+
 .kpi-card {
     padding: 24px;
-    border-radius: 18px;
+    border-radius: 22px;
     background: white;
-    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
     border: 1px solid #e5e7eb;
+    min-height: 150px;
+    position: relative;
+    overflow: hidden;
 }
+
+.kpi-card:after {
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:5px;
+    background: var(--accent);
+}
+
+.kpi-icon {
+    font-size: 26px;
+    margin-bottom: 14px;
+}
+
 .kpi-title {
-    font-size: 14px;
+    font-size: 13px;
     color: #64748b;
+    font-weight: 850;
 }
+
 .kpi-value {
-    font-size: 34px;
-    font-weight: 800;
-    color: #111827;
+    font-size: 38px;
+    font-weight: 950;
+    color: #0f172a;
+    line-height: 1.1;
+    margin: 7px 0;
 }
-.badge {
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
+
+.kpi-sub {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.panel {
+    background: white;
+    border:1px solid #e2e8f0;
+    border-radius: 24px;
+    box-shadow: 0 14px 32px rgba(15,23,42,.07);
+    padding: 24px;
+    margin-bottom: 18px;
+}
+
+.panel-title {
+    font-size: 22px;
+    font-weight: 950;
+    color:#0f172a;
+    margin-bottom: 16px;
+}
+
+.quick-row {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:13px 14px;
+    border-radius:14px;
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    margin-bottom:10px;
+}
+
+.count-pill {
+    padding:4px 11px;
+    border-radius:999px;
+    font-weight:900;
+    background:#dbeafe;
+    color:#1d4ed8;
+}
+
+[data-testid="stFileUploaderDropzone"] {
+    border-radius: 18px;
+    border: 1px solid #dbe3ef;
+    background: #f8fafc;
+}
+
+.stButton > button {
+    border-radius: 14px;
+    font-weight: 800;
+}
+
+hr {
+    margin-top: 1.4rem;
+    margin-bottom: 1.4rem;
 }
 </style>
 """, unsafe_allow_html=True)
+
+
+# =========================
+# HELPERS FOR UI ONLY
+# =========================
+def image_to_base64(path):
+    if not os.path.exists(path):
+        return ""
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+
+def render_logo_html(size_class="hero-logo"):
+    logo64 = image_to_base64(LOGO_PATH)
+    if logo64:
+        return f'<img class="{size_class}" src="data:image/png;base64,{logo64}">'
+    return '<div style="font-size:62px;">💎</div>'
 
 
 # =========================
@@ -78,26 +267,19 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 
 with st.sidebar:
-    st.image("assets/logo.png", width=120)
-    st.markdown("""
-    <div style="font-size:28px;
-    font-weight:800;
-    margin-top:-5px;">
-    TOPAZ
-    </div>
-    
-    <div style="font-size:13px;
-    color:#CBD5E1;">
-    V5 Enterprise
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("### Smart Tracker")
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=145)
+    else:
+        st.markdown("## 💎")
+
+    st.markdown('<div class="sidebar-logo-title">TOPAZ</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker</div>', unsafe_allow_html=True)
     st.divider()
 
     if not st.session_state.logged_in:
         username = st.text_input("Username")
 
-        if st.button("Login"):
+        if st.button("Login", use_container_width=True):
             st.session_state.username = username.strip()
 
             if username.strip().lower() == "pavinee":
@@ -108,26 +290,32 @@ with st.sidebar:
             st.session_state.logged_in = True
             st.rerun()
     else:
-        st.markdown(f"👤 **User:** {st.session_state.username}")
-        st.markdown(f"🔑 **Role:** {st.session_state.role.title()}")
+        st.markdown(
+            f"""
+            <div class="sidebar-card">
+                <b>🔑 Role</b><br>{st.session_state.role.title()}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-        if st.button("Logout"):
+        if st.button("Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.role = "viewer"
             st.session_state.username = ""
             st.rerun()
 
     st.divider()
-    st.markdown("🏠 Dashboard")
-    st.markdown("📋 Documents")
-    st.markdown("📊 Action Summary")
-    st.markdown("⬇ Download Report")
+    st.markdown('<div class="nav-active">🏠 Dashboard</div>', unsafe_allow_html=True)
+    st.markdown('<div class="nav-item">📋 Documents</div>', unsafe_allow_html=True)
+    st.markdown('<div class="nav-item">📊 Action Summary</div>', unsafe_allow_html=True)
+    st.markdown('<div class="nav-item">⬇ Download Report</div>', unsafe_allow_html=True)
     st.divider()
-    st.caption("Topaz Smart Document Tracker v2.0")
+    st.caption("Topaz Smart Document Tracker UI")
 
 
 # =========================
-# FUNCTIONS
+# FUNCTIONS - ORIGINAL LOGIC KEPT
 # =========================
 def base_doc_no(doc_no):
     doc_no = str(doc_no).strip()
@@ -343,16 +531,23 @@ if "result_df" not in st.session_state:
 
 
 # =========================
-# HEADER
+# HEADER - UI ONLY
 # =========================
-col_title, col_time = st.columns([3, 1])
-
-with col_title:
-    st.markdown('<div class="main-title">📄 Topaz Smart Document Tracker</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Web dashboard for OPEN / ON PROGRESS documents compared with Takenaka status.</div>', unsafe_allow_html=True)
-
-with col_time:
-    st.info("Data is up to date")
+st.markdown(
+    f"""
+    <div class="hero">
+        <div class="hero-grid">
+            <div>{render_logo_html()}</div>
+            <div>
+                <div class="hero-title">Topaz Smart Document Tracker</div>
+                <div class="hero-subtitle">TOPAZ BKK1 | ICT Document Control Dashboard</div>
+            </div>
+            <div class="hero-badge">Data is up to date</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 
 # =========================
@@ -361,28 +556,37 @@ with col_time:
 if st.session_state.role == "admin":
     st.markdown('<div class="info-box">👩‍💼 Admin mode: Admin can upload files and generate dashboard.</div>', unsafe_allow_html=True)
 
-    tracking_file = st.file_uploader("1) Upload Tracking_document.xlsx", type=["xlsx"])
-    takenaka_file = st.file_uploader("2) Upload Takenaka Summary.xlsx", type=["xlsx"])
+    col_upload_1, col_upload_2, col_button = st.columns([1, 1, 0.8])
 
-    if tracking_file and takenaka_file:
-        if st.button("🚀 Generate Dashboard", type="primary"):
-            with st.spinner("Reading files and generating dashboard..."):
-                report, total_docs, open_docs, rows = generate_report(
-                    tracking_file,
-                    takenaka_file
-                )
+    with col_upload_1:
+        tracking_file = st.file_uploader("1) Upload Tracking_document.xlsx", type=["xlsx"])
 
-            df = pd.DataFrame(rows)
-            action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
+    with col_upload_2:
+        takenaka_file = st.file_uploader("2) Upload Takenaka Summary.xlsx", type=["xlsx"])
 
-            st.session_state.result_df = df
-            st.session_state.report = report
-            st.session_state.total_docs = total_docs
-            st.session_state.open_docs = open_docs
-            st.session_state.action_counts = action_counts
+    with col_button:
+        st.write("")
+        st.write("")
+        generate_clicked = st.button("🚀 Generate Dashboard", type="primary", use_container_width=True)
+
+    if tracking_file and takenaka_file and generate_clicked:
+        with st.spinner("Reading files and generating dashboard..."):
+            report, total_docs, open_docs, rows = generate_report(
+                tracking_file,
+                takenaka_file
+            )
+
+        df = pd.DataFrame(rows)
+        action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
+
+        st.session_state.result_df = df
+        st.session_state.report = report
+        st.session_state.total_docs = total_docs
+        st.session_state.open_docs = open_docs
+        st.session_state.action_counts = action_counts
 
 else:
-    st.markdown('<div class="info-box">ℹ️ Viewer mode: Only Admin can upload files.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="viewer-box">ℹ️ Viewer mode: only Admin can upload files and generate dashboard.</div>', unsafe_allow_html=True)
 
 
 # =========================
@@ -398,80 +602,100 @@ if st.session_state.result_df is not None:
 
     with c1:
         st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-title">📁 Total Documents</div>
+        <div class="kpi-card" style="--accent:#7c3aed;">
+            <div class="kpi-icon">📁</div>
+            <div class="kpi-title">Total Documents</div>
             <div class="kpi-value">{st.session_state.total_docs}</div>
-            <div class="kpi-title">All documents</div>
+            <div class="kpi-sub">All documents</div>
         </div>
         """, unsafe_allow_html=True)
 
     with c2:
         st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-title">🕒 Open / On Progress</div>
+        <div class="kpi-card" style="--accent:#2563eb;">
+            <div class="kpi-icon">🕒</div>
+            <div class="kpi-title">Open / On Progress</div>
             <div class="kpi-value">{st.session_state.open_docs}</div>
-            <div class="kpi-title">Documents</div>
+            <div class="kpi-sub">Documents</div>
         </div>
         """, unsafe_allow_html=True)
 
     with c3:
         st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-title">▶ Open & On Process</div>
+        <div class="kpi-card" style="--accent:#16a34a;">
+            <div class="kpi-icon">▶️</div>
+            <div class="kpi-title">Open & On Process</div>
             <div class="kpi-value">{action_counts.get("OPEN & ON PROCESS", 0)}</div>
-            <div class="kpi-title">Waiting review</div>
+            <div class="kpi-sub">Waiting review</div>
         </div>
         """, unsafe_allow_html=True)
 
     with c4:
         st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-title">🔄 Need Update</div>
+        <div class="kpi-card" style="--accent:#f97316;">
+            <div class="kpi-icon">🔄</div>
+            <div class="kpi-title">Need Update</div>
             <div class="kpi-value">{action_counts.get("UPDATE TRACKING TO CLOSED", 0)}</div>
-            <div class="kpi-title">Update tracking</div>
+            <div class="kpi-sub">Update tracking</div>
         </div>
         """, unsafe_allow_html=True)
 
     with c5:
         st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-title">⚠ Overdue</div>
+        <div class="kpi-card" style="--accent:#ef4444;">
+            <div class="kpi-icon">⚠️</div>
+            <div class="kpi-title">Overdue</div>
             <div class="kpi-value">{action_counts.get("OVERDUE / FOLLOW UP", 0)}</div>
-            <div class="kpi-title">Follow up</div>
+            <div class="kpi-sub">Follow up</div>
         </div>
         """, unsafe_allow_html=True)
 
-    st.divider()
+    st.write("")
+    st.write("")
 
-    chart_col, table_col = st.columns([1, 1])
+    chart_col, table_col = st.columns([1.4, 1])
 
     with chart_col:
-        st.subheader("📊 Action Summary")
+        st.markdown('<div class="panel"><div class="panel-title">📊 Action Summary</div>', unsafe_allow_html=True)
         summary_df = pd.DataFrame(
             [{"Action": k, "Count": v} for k, v in action_counts.items()]
         )
 
         if not summary_df.empty:
             st.bar_chart(summary_df.set_index("Action"))
-            st.dataframe(summary_df, use_container_width=True)
+            st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("No action data found.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with table_col:
-        st.subheader("🧭 Quick Action")
-        st.write("Returned by NV5:", action_counts.get("RETURNED BY NV5 / NEED RESUBMIT", 0))
-        st.write("Need update closed:", action_counts.get("UPDATE TRACKING TO CLOSED", 0))
-        st.write("Overdue follow up:", action_counts.get("OVERDUE / FOLLOW UP", 0))
-        st.write("Not found in Takenaka:", action_counts.get("NOT FOUND IN TAKENAKA SOURCE", 0))
+        st.markdown('<div class="panel"><div class="panel-title">🧭 Quick Action</div>', unsafe_allow_html=True)
+        quick_items = [
+            ("Returned by NV5", action_counts.get("RETURNED BY NV5 / NEED RESUBMIT", 0)),
+            ("Need update closed", action_counts.get("UPDATE TRACKING TO CLOSED", 0)),
+            ("Overdue follow up", action_counts.get("OVERDUE / FOLLOW UP", 0)),
+            ("Not found in Takenaka", action_counts.get("NOT FOUND IN TAKENAKA SOURCE", 0)),
+        ]
 
-    st.divider()
+        for label, count in quick_items:
+            st.markdown(
+                f'<div class="quick-row"><span>{label}</span><span class="count-pill">{count}</span></div>',
+                unsafe_allow_html=True
+            )
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    st.subheader("📋 Document Action List")
+    st.markdown('<div class="panel"><div class="panel-title">📋 Document Action List</div>', unsafe_allow_html=True)
 
-    selected_action = st.selectbox(
-        "Filter by Action",
-        ["All"] + sorted(df["Action"].dropna().unique().tolist())
-    )
+    filter_col, search_col, download_col = st.columns([1, 2, 0.8])
 
-    search = st.text_input("Search Document No / Document Name")
+    with filter_col:
+        selected_action = st.selectbox(
+            "Filter by Action",
+            ["All"] + sorted(df["Action"].dropna().unique().tolist())
+        )
+
+    with search_col:
+        search = st.text_input("Search Document No / Document Name")
 
     filtered_df = df.copy()
 
@@ -487,12 +711,18 @@ if st.session_state.result_df is not None:
 
     st.dataframe(filtered_df, use_container_width=True, height=480)
 
-    st.download_button(
-        label="⬇️ Download Excel Report",
-        data=st.session_state.report,
-        file_name="Open_On_Process_Compare.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    with download_col:
+        st.write("")
+        st.write("")
+        st.download_button(
+            label="⬇️ Download Excel Report",
+            data=st.session_state.report,
+            file_name="Open_On_Process_Compare.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 else:
     st.info("Please upload both Excel files and click Generate Dashboard.")
