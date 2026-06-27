@@ -677,10 +677,44 @@ if st.session_state.result_df is not None:
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="panel"><div class="panel-title">📋 Document Action List</div>', unsafe_allow_html=True)
+# Ensure dataframe has Action column
+if df.empty:
+    df = pd.DataFrame(columns=[
+        "Tracking Sheet",
+        "Document No",
+        "Document Name",
+        "Tracking Status",
+        "Info",
+        "Takenaka Sheet",
+        "Takenaka Status 1",
+        "Takenaka Status 2",
+        "Takenaka Status 3",
+        "Action",
+        "Checked Time",
+    ])
 
+if "Action" not in df.columns:
+    df["Action"] = ""    
     f1, f2, f3 = st.columns([1, 2, 0.8])
     with f1:
-        selected_action = st.selectbox("Filter by Action", ["All"] + sorted(df["Action"].dropna().unique().tolist()))
+action_list = ["All"]
+
+    if "Action" in df.columns:
+        actions = (
+            df["Action"]
+            .fillna("")
+            .astype(str)
+            .unique()
+            .tolist()
+        )
+    
+        actions = sorted([a for a in actions if a != ""])
+        action_list.extend(actions)
+    
+    selected_action = st.selectbox(
+        "Filter by Action",
+        action_list
+    )
     with f2:
         search = st.text_input("Search Document No / Document Name")
     with f3:
