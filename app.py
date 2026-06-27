@@ -6,29 +6,75 @@ from io import BytesIO
 import pandas as pd
 import altair as alt
 
-st.set_page_config(page_title="Topaz Smart Document Tracker V4 Clean", page_icon="💎", layout="wide")
+# =========================================================
+# TOPAZ SMART DOCUMENT TRACKER - V4 CLEAN COMPLETE
+# =========================================================
+
+st.set_page_config(
+    page_title="Topaz Smart Document Tracker",
+    page_icon="💎",
+    layout="wide"
+)
 
 TRACKING_SHEETS = ["RFA", "RFI"]
 TAKENAKA_SHEETS = ["MAT_ICT", "DWG_ICT", "MTS_ICT"]
 
-# =============================
+REPORT_COLUMNS = [
+    "Tracking Sheet",
+    "Document No",
+    "Document Name",
+    "Tracking Status",
+    "Info",
+    "Takenaka Sheet",
+    "Takenaka Doc No",
+    "Takenaka Status 1",
+    "Takenaka Status 2",
+    "Takenaka Status 3",
+    "Action",
+    "Checked Time",
+]
+
+# =========================================================
 # STYLE
-# =============================
+# =========================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
 
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.stApp { background: #f4f7fb; color: #0f172a; }
-.block-container { max-width: 1580px; padding-top: 1.2rem; padding-bottom: 3rem; }
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+.stApp {
+    background: #f4f7fb;
+    color: #0f172a;
+}
+
+.block-container {
+    max-width: 1580px;
+    padding-top: 1.2rem;
+    padding-bottom: 3rem;
+}
 
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #061124 0%, #0f172a 72%, #111827 100%);
 }
-[data-testid="stSidebar"] * { color: white; }
 
-.logo { font-size: 30px; font-weight: 900; margin-bottom: 2px; }
-.logo-sub { color:#c7d2fe; font-size: 13px; margin-bottom: 22px; }
+[data-testid="stSidebar"] * {
+    color: white;
+}
+
+.logo {
+    font-size: 30px;
+    font-weight: 900;
+    margin-bottom: 2px;
+}
+
+.logo-sub {
+    color:#c7d2fe;
+    font-size: 13px;
+    margin-bottom: 22px;
+}
 
 .user-card {
     padding: 16px;
@@ -203,18 +249,12 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     background:#dbeafe;
     color:#1d4ed8;
 }
-
-.footer-note {
-    color:#64748b;
-    font-size:12px;
-    margin-top:6px;
-}
 </style>
 """, unsafe_allow_html=True)
 
-# =============================
+# =========================================================
 # LOGIN
-# =============================
+# =========================================================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "role" not in st.session_state:
@@ -255,9 +295,9 @@ with st.sidebar:
     st.divider()
     st.caption("© 2026 Topaz Smart Tracker")
 
-# =============================
+# =========================================================
 # DATA FUNCTIONS
-# =============================
+# =========================================================
 def norm_text(value):
     return str(value or "").strip()
 
@@ -272,16 +312,10 @@ def base_doc_no(doc_no):
     return doc_no
 
 def normalize_header(value):
-    return (
-        str(value or "")
-        .replace("\n", " ")
-        .replace("\r", " ")
-        .strip()
-        .upper()
-    )
+    return str(value or "").replace("\n", " ").replace("\r", " ").strip().upper()
 
 def find_header_row_and_columns(ws):
-    for row in range(1, 25):
+    for row in range(1, 30):
         headers = {}
         for col in range(1, ws.max_column + 1):
             value = ws.cell(row=row, column=col).value
@@ -385,6 +419,9 @@ def should_include_tracking(status, info):
         or "ON PROCESS" in info_u
     )
 
+def empty_report_df():
+    return pd.DataFrame(columns=REPORT_COLUMNS)
+
 def generate_report(tracking_file, takenaka_file):
     takenaka_map = read_takenaka(takenaka_file)
 
@@ -396,22 +433,7 @@ def generate_report(tracking_file, takenaka_file):
         del output_wb[report_sheet]
 
     report_ws = output_wb.create_sheet(report_sheet)
-
-    headers_out = [
-        "Tracking Sheet",
-        "Document No",
-        "Document Name",
-        "Tracking Status",
-        "Info",
-        "Takenaka Sheet",
-        "Takenaka Doc No",
-        "Takenaka Status 1",
-        "Takenaka Status 2",
-        "Takenaka Status 3",
-        "Action",
-        "Checked Time",
-    ]
-    report_ws.append(headers_out)
+    report_ws.append(REPORT_COLUMNS)
 
     fills = {
         "UPDATE TRACKING TO CLOSED": PatternFill(fill_type="solid", fgColor="C6EFCE"),
@@ -500,19 +522,7 @@ def generate_report(tracking_file, takenaka_file):
             report_ws.append(new_row)
             report_ws[f"K{report_ws.max_row}"].fill = fills.get(action, fills["CHECK"])
 
-            rows.append({
-                "Tracking Sheet": new_row[0],
-                "Document No": new_row[1],
-                "Document Name": new_row[2],
-                "Tracking Status": new_row[3],
-                "Info": new_row[4],
-                "Takenaka Sheet": new_row[5],
-                "Takenaka Status 1": new_row[7],
-                "Takenaka Status 2": new_row[8],
-                "Takenaka Status 3": new_row[9],
-                "Action": new_row[10],
-                "Checked Time": new_row[11],
-            })
+            rows.append(dict(zip(REPORT_COLUMNS, new_row)))
 
     for col in report_ws.columns:
         max_len = 0
@@ -528,11 +538,12 @@ def generate_report(tracking_file, takenaka_file):
 
     return output, total_docs, focus_docs, rows
 
-# =============================
+# =========================================================
 # SESSION STATE
-# =============================
+# =========================================================
 defaults = {
-    "result_df": None,
+    "result_df": empty_report_df(),
+    "has_result": False,
     "report": None,
     "total_docs": 0,
     "focus_docs": 0,
@@ -543,9 +554,9 @@ for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-# =============================
+# =========================================================
 # HERO
-# =============================
+# =========================================================
 st.markdown("""
 <div class="hero">
     <div class="hero-grid">
@@ -558,9 +569,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# =============================
+# =========================================================
 # UPLOAD AREA
-# =============================
+# =========================================================
 if st.session_state.role == "admin":
     st.markdown('<div class="admin">👩‍💼 Admin mode: Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
 
@@ -578,13 +589,14 @@ if st.session_state.role == "admin":
         with st.spinner("Reading files and generating dashboard..."):
             report, total_docs, focus_docs, rows = generate_report(tracking_file, takenaka_file)
 
-        df = pd.DataFrame(rows)
+        df = pd.DataFrame(rows, columns=REPORT_COLUMNS)
         if not df.empty:
             df["Action"] = df["Action"].apply(normalize_action)
 
-        action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
+        action_counts = df["Action"].value_counts().to_dict() if ("Action" in df.columns and not df.empty) else {}
 
         st.session_state.result_df = df
+        st.session_state.has_result = True
         st.session_state.report = report
         st.session_state.total_docs = total_docs
         st.session_state.focus_docs = focus_docs
@@ -595,12 +607,19 @@ if st.session_state.role == "admin":
 else:
     st.markdown('<div class="notice">ℹ️ Viewer mode: only Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
 
-# =============================
+# =========================================================
 # DASHBOARD
-# =============================
-if st.session_state.result_df is not None:
+# =========================================================
+if st.session_state.has_result:
     df = st.session_state.result_df.copy()
-    action_counts = st.session_state.action_counts
+
+    if df.empty:
+        df = empty_report_df()
+
+    if "Action" not in df.columns:
+        df["Action"] = ""
+
+    action_counts = st.session_state.action_counts or {}
 
     open_process = action_counts.get("OPEN & ON PROCESS", 0)
     update_closed = action_counts.get("UPDATE TRACKING TO CLOSED", 0)
@@ -653,6 +672,8 @@ if st.session_state.result_df is not None:
             )
             st.altair_chart(chart, use_container_width=True)
             st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("No action data found.")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -677,60 +698,32 @@ if st.session_state.result_df is not None:
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="panel"><div class="panel-title">📋 Document Action List</div>', unsafe_allow_html=True)
-# Ensure dataframe has Action column
-if df.empty:
-    df = pd.DataFrame(columns=[
-        "Tracking Sheet",
-        "Document No",
-        "Document Name",
-        "Tracking Status",
-        "Info",
-        "Takenaka Sheet",
-        "Takenaka Status 1",
-        "Takenaka Status 2",
-        "Takenaka Status 3",
-        "Action",
-        "Checked Time",
-    ])
 
-if "Action" not in df.columns:
-    df["Action"] = ""    
     f1, f2, f3 = st.columns([1, 2, 0.8])
-    with f1:
-action_list = ["All"]
 
+    actions = []
     if "Action" in df.columns:
-        actions = (
-            df["Action"]
-            .fillna("")
-            .astype(str)
-            .unique()
-            .tolist()
-        )
-    
-        actions = sorted([a for a in actions if a != ""])
-        action_list.extend(actions)
-    
-    selected_action = st.selectbox(
-        "Filter by Action",
-        action_list
-    )
+        actions = sorted([x for x in df["Action"].fillna("").astype(str).unique().tolist() if x])
+
+    with f1:
+        selected_action = st.selectbox("Filter by Action", ["All"] + actions)
     with f2:
         search = st.text_input("Search Document No / Document Name")
     with f3:
         st.write("")
         st.write("")
-        st.download_button(
-            label="⬇️ Export Excel",
-            data=st.session_state.report,
-            file_name="Open_On_Process_Compare.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
+        if st.session_state.report is not None:
+            st.download_button(
+                label="⬇️ Export Excel",
+                data=st.session_state.report,
+                file_name="Open_On_Process_Compare.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
 
     filtered_df = df.copy()
 
-    if selected_action != "All":
+    if selected_action != "All" and "Action" in filtered_df.columns:
         filtered_df = filtered_df[filtered_df["Action"] == selected_action]
 
     if search:
