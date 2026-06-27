@@ -1,8 +1,9 @@
-import streamlit as st from openpyxl
-import load_workbook from openpyxl.styles
-import Font, PatternFillfrom datetime 
-import datetimefrom io 
-import BytesIOimport pandas as pd
+import streamlit as st
+from openpyxl import load_workbook
+from openpyxl.styles import Font, PatternFill
+from datetime import datetime
+from io import BytesIO
+import pandas as pd
 
 st.set_page_config(page_title="Topaz Smart Document Tracker",page_icon="💎",layout="wide")
 
