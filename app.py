@@ -215,14 +215,14 @@ def generate_report(tracking_file, takenaka_file):
             tracking_status_text = str(tracking_status or "").strip().upper()
             info_text = str(info or "").strip().upper()
 
-if (
-    "OPEN" not in tracking_status_text
-    and "ON PROGRESS" not in tracking_status_text
-    and "ON PROCESS" not in tracking_status_text
-    and "ON PROGRESS" not in info_text
-    and "ON PROCESS" not in info_text
-):
-    continue
+            if (
+                "OPEN" not in tracking_status_text
+                and "ON PROGRESS" not in tracking_status_text
+                and "ON PROCESS" not in tracking_status_text
+                and "ON PROGRESS" not in info_text
+                and "ON PROCESS" not in info_text
+            ):
+                continue
 
             open_docs += 1
             key = base_doc_no(doc_no)
