@@ -3,6 +3,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
 from datetime import datetime
 from io import BytesIO
+import pandas as pd
 
 tracking_sheets = ["RFA", "RFI"]
 takenaka_sheets = ["MAT_ICT", "DWG_ICT", "MTS_ICT"]
@@ -61,6 +62,8 @@ def generate_report(tracking_file, takenaka_file):
     red = PatternFill(fill_type="solid", fgColor="FFC7CE")
     blue = PatternFill(fill_type="solid", fgColor="BDD7EE")
 
+    rows = []
+    total_docs = 0
     open_count = 0
     action_count = {}
 
@@ -76,6 +79,8 @@ def generate_report(tracking_file, takenaka_file):
 
             if not doc_no:
                 continue
+
+            total_docs += 1
 
             if str(status or "").strip().upper() != "OPEN":
                 continue
@@ -109,40 +114,36 @@ def generate_report(tracking_file, takenaka_file):
                     action = "CHECK"
                     fill = blue
 
-                report_ws.append([
+                new_row = [
                     sheet, doc_no, doc_name, status,
                     src["sheet"], src["doc_no"],
                     src["status1"], src["status2"], src["status3"],
                     action, checked_time
-                ])
+                ]
             else:
                 action = "NOT FOUND IN TAKENAKA SOURCE"
                 fill = red
-                report_ws.append([
+                new_row = [
                     sheet, doc_no, doc_name, status,
                     "", "", "", "", "",
                     action, checked_time
-                ])
+                ]
 
+            report_ws.append(new_row)
             report_ws[f"J{report_ws.max_row}"].fill = fill
+
+            rows.append({
+                "Tracking Sheet": new_row[0],
+                "Document No": new_row[1],
+                "Document Name": new_row[2],
+                "Tracking Status": new_row[3],
+                "Takenaka Status 1": new_row[6],
+                "Takenaka Status 2": new_row[7],
+                "Takenaka Status 3": new_row[8],
+                "Action": new_row[9],
+            })
+
             action_count[action] = action_count.get(action, 0) + 1
-
-    summary_row = report_ws.max_row + 3
-    report_ws[f"A{summary_row}"] = "SUMMARY"
-    report_ws[f"A{summary_row}"].font = Font(bold=True)
-
-    r = summary_row + 1
-    report_ws[f"A{r}"] = "OPEN DOCUMENTS IN TRACKING"
-    report_ws[f"B{r}"] = open_count
-
-    for action, count in action_count.items():
-        r += 1
-        report_ws[f"A{r}"] = action
-        report_ws[f"B{r}"] = count
-
-    r += 1
-    report_ws[f"A{r}"] = "GENERATED TIME"
-    report_ws[f"B{r}"] = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
     for col in report_ws.columns:
         max_len = 0
@@ -155,31 +156,62 @@ def generate_report(tracking_file, takenaka_file):
     output = BytesIO()
     out_wb.save(output)
     output.seek(0)
-    return output, open_count, action_count
 
-st.set_page_config(page_title="Topaz Smart Document Tracker", page_icon="📄", layout="centered")
+    return output, total_docs, open_count, action_count, rows
+
+st.set_page_config(
+    page_title="Topaz Smart Document Tracker",
+    page_icon="📄",
+    layout="wide"
+)
 
 st.title("📄 Topaz Smart Document Tracker")
-st.caption("Upload Tracking Document and Takenaka Summary, then download the comparison report.")
+st.caption("Compare OPEN documents from Tracking Document with Takenaka Status.")
 
 tracking_file = st.file_uploader("1) Upload Tracking_document.xlsx", type=["xlsx"])
 takenaka_file = st.file_uploader("2) Upload Takenaka Summary.xlsx", type=["xlsx"])
 
 if tracking_file and takenaka_file:
     if st.button("Generate Report", type="primary"):
-        report, open_count, action_count = generate_report(tracking_file, takenaka_file)
-
-        st.success(f"Report generated. Open documents checked: {open_count}")
-
-        col1, col2 = st.columns(2)
-        col1.metric("Open documents", open_count)
-        col2.metric("Actions found", sum(action_count.values()))
-
-        st.write("### Summary")
-        st.dataframe(
-            [{"Action": k, "Count": v} for k, v in action_count.items()],
-            use_container_width=True
+        report, total_docs, open_count, action_count, rows = generate_report(
+            tracking_file, takenaka_file
         )
+
+        st.success("Report generated successfully ka ✅")
+
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("Total Documents", total_docs)
+        c2.metric("Open in Tracking", open_count)
+        c3.metric("Open & On Process", action_count.get("OPEN & ON PROCESS", 0))
+        c4.metric("Need Update", action_count.get("UPDATE TRACKING TO CLOSED", 0))
+        c5.metric("Overdue / Follow Up", action_count.get("OVERDUE / FOLLOW UP", 0))
+
+        st.subheader("📊 Action Summary")
+        summary_df = pd.DataFrame(
+            [{"Action": k, "Count": v} for k, v in action_count.items()]
+        )
+        st.dataframe(summary_df, use_container_width=True)
+
+        st.subheader("📋 Action List")
+        result_df = pd.DataFrame(rows)
+
+        selected_action = st.selectbox(
+            "Filter by Action",
+            ["All"] + sorted(result_df["Action"].unique().tolist())
+        )
+
+        if selected_action != "All":
+            result_df = result_df[result_df["Action"] == selected_action]
+
+        search = st.text_input("Search Document No / Document Name")
+        if search:
+            result_df = result_df[
+                result_df.astype(str).apply(
+                    lambda x: x.str.contains(search, case=False, na=False)
+                ).any(axis=1)
+            ]
+
+        st.dataframe(result_df, use_container_width=True)
 
         st.download_button(
             label="⬇️ Download Excel Report",
@@ -187,5 +219,6 @@ if tracking_file and takenaka_file:
             file_name="Open_On_Process_Compare.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
 else:
     st.info("Please upload both Excel files to generate the report.")
