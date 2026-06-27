@@ -78,7 +78,19 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 
 with st.sidebar:
-    st.markdown("## 💎 TOPAZ")
+    st.image("assets/logo.png", width=120)
+    st.markdown("""
+    <div style="font-size:28px;
+    font-weight:800;
+    margin-top:-5px;">
+    TOPAZ
+    </div>
+    
+    <div style="font-size:13px;
+    color:#CBD5E1;">
+    V5 Enterprise
+    </div>
+    """, unsafe_allow_html=True)
     st.markdown("### Smart Tracker")
     st.divider()
 
@@ -347,7 +359,7 @@ with col_time:
 # UPLOAD AREA
 # =========================
 if st.session_state.role == "admin":
-    st.markdown('<div class="info-box">👩‍💼 Admin mode: Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="info-box">👩‍💼 Admin mode: Admin can upload files and generate dashboard.</div>', unsafe_allow_html=True)
 
     tracking_file = st.file_uploader("1) Upload Tracking_document.xlsx", type=["xlsx"])
     takenaka_file = st.file_uploader("2) Upload Takenaka Summary.xlsx", type=["xlsx"])
@@ -370,7 +382,7 @@ if st.session_state.role == "admin":
             st.session_state.action_counts = action_counts
 
 else:
-    st.markdown('<div class="info-box">ℹ️ Viewer mode: only Pavinee can upload files and generate dashboard.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="info-box">ℹ️ Viewer mode: Only Admin can upload files.</div>', unsafe_allow_html=True)
 
 
 # =========================
