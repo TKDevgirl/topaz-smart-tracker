@@ -1,13 +1,20 @@
-# Topaz Smart Document Tracker V6.1 Enterprise
+# Topaz Smart Document Tracker V6.1.8 Structured
 
-Admin login:
-- admin
-- pavinee
+Structured version of the Topaz Streamlit dashboard.
 
-Viewer:
-- Can open the Streamlit link and see the latest generated dashboard in read-only mode.
+## Files
 
-Important:
-- Admin must generate once after deployment before viewers can see data.
-- Saved data is stored in the app runtime under `/data`.
-- For fully permanent storage across app restarts, connect to Google Sheets, Supabase, S3, or GitHub API in the next phase.
+- `app.py` - main application
+- `config.py` - constants and file paths
+- `style.py` - CSS styling
+- `utils.py` - helper functions
+- `status_summary.py` - RFA/RFI latest revision summary logic
+- `report_generator.py` - Takenaka comparison report logic
+- `storage.py` - shared dashboard storage
+- `ui_components.py` - Streamlit UI sections
+
+## Run
+
+```bash
+streamlit run app.py
+```
