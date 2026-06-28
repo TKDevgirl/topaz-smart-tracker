@@ -524,7 +524,7 @@ with st.sidebar:
         st.markdown("## 💎")
 
     st.markdown('<div class="sidebar-logo-title">TOPAZ</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.4.4</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.4 Clean.4</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -981,44 +981,8 @@ if st.session_state.result_df is not None:
             use_container_width=False,
         )
 
-        st.markdown("#### 🔎 Drill Down")
-
-        if status_detail_df is not None and not status_detail_df.empty:
-            drill_col_1, drill_col_2 = st.columns(2)
-
-            with drill_col_1:
-                drill_status = st.selectbox(
-                    "Select Status",
-                    ["All"] + sorted(status_detail_df["Status"].dropna().unique().tolist()),
-                    key="drill_status",
-                )
-
-            with drill_col_2:
-                drill_category = st.selectbox(
-                    "Select Category",
-                    ["All"] + sorted(status_detail_df["Category"].dropna().unique().tolist()),
-                    key="drill_category",
-                )
-
-            drill_df = status_detail_df.copy()
-
-            if drill_status != "All":
-                drill_df = drill_df[drill_df["Status"] == drill_status]
-
-            if drill_category != "All":
-                drill_df = drill_df[drill_df["Category"] == drill_category]
-
-            st.dataframe(drill_df, use_container_width=True, hide_index=True, height=280)
-
-            st.download_button(
-                label="⬇️ Export Drill Down",
-                data=dataframe_to_excel_bytes(drill_df, "Drill Down"),
-                file_name="Topaz_Status_Drill_Down.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=False,
-            )
-        else:
-            st.info("No drill down data available. Please generate dashboard again.")
+        # Drill Down removed in Clean version.
+        # Detailed document list remains available in the Document Action List panel below.
 
     else:
         st.info("No status summary available. Please generate dashboard again with Tracking_document.xlsx.")
