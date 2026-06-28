@@ -1,3 +1,4 @@
-# Topaz UI Only
+# Topaz V6 Shared Dashboard
 
-Logic kept from working base. UI/logo updated only.
+Admin login: `admin` or `pavinee`.
+Viewer can see latest saved dashboard.
