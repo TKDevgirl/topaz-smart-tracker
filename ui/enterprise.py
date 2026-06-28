@@ -138,7 +138,15 @@ def render_snapshot_compare_panel() -> None:
     runs_df = list_dashboard_runs()
 
     if runs_df.empty or len(runs_df) < 2:
-        st.info("Snapshot Compare will be available after at least 2 dashboard generations.")
+        st.markdown(
+            """
+            <div class="empty-state">
+                <div class="empty-state-title">Snapshot compare is waiting for more history</div>
+                Generate at least 2 dashboard runs to compare project movement between Excel versions.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         st.markdown("</div>", unsafe_allow_html=True)
         return
 

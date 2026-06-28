@@ -223,6 +223,56 @@ def apply_theme() -> None:
     border-radius: 14px;
     font-weight: 800;
 }
+
+.product-note {
+    padding: 15px 18px;
+    border-radius: 18px;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    color: #475569;
+    font-weight: 700;
+    margin: 12px 0;
+}
+
+.empty-state {
+    padding: 34px;
+    border-radius: 22px;
+    background: linear-gradient(90deg, #f8fafc, #ffffff);
+    border: 1px solid #e2e8f0;
+    text-align: center;
+    color: #475569;
+    font-weight: 800;
+}
+
+.empty-state-title {
+    font-size: 22px;
+    color: #0f172a;
+    font-weight: 950;
+    margin-bottom: 8px;
+}
+
+.section-subtitle {
+    color: #64748b;
+    font-size: 13px;
+    margin-top: -6px;
+    margin-bottom: 16px;
+}
+
+.sync-mini {
+    display: inline-block;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: #ecfdf5;
+    color: #166534;
+    font-weight: 900;
+    font-size: 12px;
+    border: 1px solid #bbf7d0;
+}
+
+.stButton > button {
+    max-height: 46px;
+}
+
 </style>
 """,
         unsafe_allow_html=True,

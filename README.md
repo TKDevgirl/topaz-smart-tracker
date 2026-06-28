@@ -1,17 +1,42 @@
-# Topaz Smart Tracker V11 Enterprise Platform
+# Topaz Smart Tracker V11.1 Polish Product
 
-Enterprise-style Streamlit platform for Topaz BKK1 ICT Document Control.
+Enterprise Document Control Platform for ICT / Data Center projects.
 
-## V11 Highlights
+## Purpose
 
-- Executive Sync Bar
-- SQLite connection status
-- Health and last sync summary
-- Alert Center
-- Snapshot Compare
-- Executive Run Timeline
-- Export Center
-- Keeps V10 SQLite, Trend, Weekly Report, Smart Search, Timeline, and Alerts
+Topaz Smart Tracker converts project document registers into an executive dashboard with:
+
+- Document action tracking
+- Latest revision logic
+- RFA / RFI category summary
+- Takenaka comparison
+- SQLite database history
+- Search and timeline
+- Alert center
+- Executive insights
+- Export center
+
+## What is improved in V11.1
+
+- Cleaner dashboard flow
+- Trend chart hidden until enough history exists
+- More professional empty states
+- Smaller Generate button
+- Executive sections ordered for PM daily use
+- Portfolio-ready README and release notes
+
+## Architecture
+
+```text
+app.py
+config/
+core/
+repositories/
+services/
+ui/
+data/
+docs/
+```
 
 ## Run
 
@@ -23,3 +48,19 @@ streamlit run app.py
 
 - Admin usernames: `admin`, `pavinee`
 - Other usernames become Viewer
+
+## Data Flow
+
+```text
+Excel Upload
+    ↓
+Generate Dashboard
+    ↓
+SQLite Database
+    ↓
+Executive Dashboard / Search / Timeline / Export
+```
+
+## Notes
+
+V11.1 focuses on polish and stability rather than adding new heavy features.

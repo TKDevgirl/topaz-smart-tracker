@@ -37,7 +37,7 @@ def render_admin_upload() -> None:
     if st.session_state.role != "admin":
         return
 
-    col_upload_1, col_upload_2, col_button = st.columns([1, 1, 0.8])
+    col_upload_1, col_upload_2, col_button = st.columns([1.15, 1.15, 0.65])
 
     with col_upload_1:
         tracking_file = st.file_uploader("1) Upload Tracking_document.xlsx", type=["xlsx"])
@@ -48,7 +48,7 @@ def render_admin_upload() -> None:
     with col_button:
         st.write("")
         st.write("")
-        generate_clicked = st.button("🚀 Generate Dashboard", type="primary", use_container_width=True)
+        generate_clicked = st.button("🚀 Generate", type="primary", use_container_width=True)
 
     if tracking_file and takenaka_file and generate_clicked:
         with st.spinner("Reading files and generating dashboard..."):
@@ -108,17 +108,17 @@ def render_dashboard() -> None:
 
     render_alert_center()
     render_executive_dashboard()
-    render_snapshot_compare_panel()
-    render_trend_dashboard()
+    render_status_summary_panel()
     render_category_analytics()
     render_smart_search_panel()
     render_document_timeline_panel()
     render_action_summary(action_counts)
-    render_status_summary_panel()
+    render_document_action_list(result_df)
+    render_trend_dashboard()
+    render_snapshot_compare_panel()
     render_run_timeline_panel()
     render_database_panel()
     render_export_center()
-    render_document_action_list(result_df)
 
 
 def main() -> None:
