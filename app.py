@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -334,17 +335,39 @@ def get_column_by_name_or_position(ws, preferred_name, fallback_letter):
     return fallback_letter
 
 
+def extract_revision_value(value):
+    """
+    Convert revision/version value to comparable number.
+    Examples:
+    00 -> 0
+    01 -> 1
+    Rev02 -> 2
+    A -> 1001
+    B -> 1002
+    Blank -> 0
+    """
+    text = str(value or "").strip()
+
+    if not text or text.lower() == "nan":
+        return 0
+
+    numbers = re.findall(r"\d+", text)
+    if numbers:
+        return int(numbers[-1])
+
+    if len(text) == 1 and text.isalpha():
+        return 1000 + ord(text.upper()) - ord("A") + 1
+
+    return 0
+
+
 def build_status_summary_from_tracking(tracking_file):
     """
-    Read Sheet RFA and RFI.
-    Use Category + Status.
-    Fallback:
-    - Category = Column C
-    - Status = Column F
-
-    Return:
-    - summary_df for dashboard
-    - detail_df for drill down
+    V6.1.5 Logic:
+    1) Read Sheet RFA and RFI.
+    2) Use Document No + Category + Status + Revision.
+    3) Keep only latest revision per Document No.
+    4) Count Status by Category.
     """
     wb = load_workbook(tracking_file, data_only=True)
 
@@ -358,16 +381,22 @@ def build_status_summary_from_tracking(tracking_file):
 
         category_col = get_column_by_name_or_position(ws, "Category", "C")
         status_col = get_column_by_name_or_position(ws, "Status", "F")
+        revision_col = get_column_by_name_or_position(ws, "Rev", "E")
 
         for row in range(2, ws.max_row + 1):
             doc_no = ws[f"B{row}"].value
             category = ws[f"{category_col}{row}"].value
             doc_name = ws[f"D{row}"].value
+            revision = ws[f"{revision_col}{row}"].value
             status = ws[f"{status_col}{row}"].value
             info = ws[f"G{row}"].value
 
+            doc_no_text = str(doc_no or "").strip()
             category_text = str(category or "").strip()
             status_text = normalize_status(status)
+
+            if not doc_no_text or doc_no_text.lower() == "nan":
+                continue
 
             if not category_text or category_text.lower() == "nan":
                 continue
@@ -378,21 +407,34 @@ def build_status_summary_from_tracking(tracking_file):
             records.append(
                 {
                     "Tracking Sheet": sheet,
-                    "Document No": doc_no,
+                    "Document No": doc_no_text,
                     "Category": category_text,
                     "Document Name": doc_name,
+                    "Revision": str(revision or "").strip(),
+                    "Revision Sort": extract_revision_value(revision),
                     "Status": status_text,
                     "Info": info,
+                    "Excel Row": row,
                 }
             )
 
-    detail_df = pd.DataFrame(records)
+    detail_all_df = pd.DataFrame(records)
 
-    if detail_df.empty:
+    if detail_all_df.empty:
         return pd.DataFrame(), pd.DataFrame()
 
+    # Keep only latest revision per Document No
+    # If revision is the same, keep the lower/latest Excel row order by sorting Excel Row as well.
+    latest_df = (
+        detail_all_df
+        .sort_values(["Document No", "Revision Sort", "Excel Row"])
+        .groupby("Document No", as_index=False)
+        .tail(1)
+        .copy()
+    )
+
     keep_status = ["Open", "On Progress", "Approved"]
-    df = detail_df[detail_df["Status"].isin(keep_status)].copy()
+    df = latest_df[latest_df["Status"].isin(keep_status)].copy()
 
     categories = sorted(df["Category"].dropna().unique().tolist())
 
@@ -424,7 +466,10 @@ def build_status_summary_from_tracking(tracking_file):
         if col != "Status":
             display_df[col] = display_df[col].apply(lambda x: "-" if int(x) == 0 else int(x))
 
-    return display_df, df
+    # Detail export/view should also use latest revision only
+    latest_detail_df = latest_df.drop(columns=["Revision Sort", "Excel Row"], errors="ignore")
+
+    return display_df, latest_detail_df
 
 
 # =========================================================
@@ -524,7 +569,7 @@ with st.sidebar:
         st.markdown("## 💎")
 
     st.markdown('<div class="sidebar-logo-title">TOPAZ</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.4 Clean.4</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.5.5.4</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -950,7 +995,7 @@ if st.session_state.result_df is not None:
     status_summary_df = st.session_state.get("status_summary_df", None)
     status_detail_df = st.session_state.get("status_detail_df", None)
 
-    st.markdown('<div class="panel"><div class="panel-title">📌 Document Status Summary by Category</div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel"><div class="panel-title">📌 Document Status Summary by Category (Latest Revision)</div>', unsafe_allow_html=True)
 
     if status_summary_df is not None and not status_summary_df.empty:
         def highlight_status(row):
