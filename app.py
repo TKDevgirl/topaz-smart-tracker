@@ -857,7 +857,6 @@ if st.session_state.role == "admin":
         st.session_state.action_counts = action_counts
         st.session_state.status_summary_df = status_summary_df
         st.session_state.status_detail_df = status_detail_df
-    st.session_state.status_detail_df = status_detail_df
         st.session_state.last_updated = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
         st.rerun()
