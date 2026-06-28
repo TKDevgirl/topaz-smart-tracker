@@ -361,13 +361,58 @@ def extract_revision_value(value):
     return 0
 
 
+def build_one_summary(df: pd.DataFrame, sheet_name: str, categories: list[str]) -> pd.DataFrame:
+    """
+    Build one summary table for RFA or RFI.
+    """
+    keep_status = ["Open", "On Progress", "Approved"]
+    df = df[df["Status"].isin(keep_status)].copy()
+
+    rows = []
+
+    for status in keep_status:
+        status_df = df[df["Status"] == status]
+        row = {
+            "Document Type": sheet_name,
+            "Status": status,
+            "Total": len(status_df),
+        }
+
+        for cat in categories:
+            row[cat] = len(status_df[status_df["Category"] == cat])
+
+        rows.append(row)
+
+    total_row = {
+        "Document Type": sheet_name,
+        "Status": "Total Document",
+        "Total": len(df),
+    }
+
+    for cat in categories:
+        total_row[cat] = len(df[df["Category"] == cat])
+
+    rows.append(total_row)
+
+    summary_df = pd.DataFrame(rows)
+
+    display_df = summary_df.copy()
+
+    for col in display_df.columns:
+        if col not in ["Document Type", "Status"]:
+            display_df[col] = display_df[col].apply(lambda x: "-" if int(x) == 0 else int(x))
+
+    return display_df
+
+
 def build_status_summary_from_tracking(tracking_file):
     """
-    V6.1.5 Logic:
+    V6.1.7 Logic:
     1) Read Sheet RFA and RFI.
-    2) Use Document No + Category + Status + Revision.
-    3) Keep only latest revision per Document No.
-    4) Count Status by Category.
+    2) Keep only latest revision per Document No per sheet.
+    3) Create separate Summary:
+       - RFA by Category: MAT / MCR / MTS / CVI / DWG
+       - RFI by Total only
     """
     wb = load_workbook(tracking_file, data_only=True)
 
@@ -381,7 +426,7 @@ def build_status_summary_from_tracking(tracking_file):
 
         category_col = get_column_by_name_or_position(ws, "Category", "C")
         status_col = get_column_by_name_or_position(ws, "Status", "F")
-        revision_col = get_column_by_name_or_position(ws, "Rev", "E")
+        revision_col = get_column_by_name_or_position(ws, "version", "E")
 
         for row in range(2, ws.max_row + 1):
             doc_no = ws[f"B{row}"].value
@@ -398,11 +443,12 @@ def build_status_summary_from_tracking(tracking_file):
             if not doc_no_text or doc_no_text.lower() == "nan":
                 continue
 
-            if not category_text or category_text.lower() == "nan":
-                continue
-
             if not status_text or status_text.lower() == "nan":
                 continue
+
+            # RFI may not need category, but keep a safe label.
+            if not category_text or category_text.lower() == "nan":
+                category_text = sheet
 
             records.append(
                 {
@@ -423,53 +469,40 @@ def build_status_summary_from_tracking(tracking_file):
     if detail_all_df.empty:
         return pd.DataFrame(), pd.DataFrame()
 
-    # Keep only latest revision per Document No
-    # If revision is the same, keep the lower/latest Excel row order by sorting Excel Row as well.
     latest_df = (
         detail_all_df
-        .sort_values(["Document No", "Revision Sort", "Excel Row"])
-        .groupby("Document No", as_index=False)
+        .sort_values(["Tracking Sheet", "Document No", "Revision Sort", "Excel Row"])
+        .groupby(["Tracking Sheet", "Document No"], as_index=False)
         .tail(1)
         .copy()
     )
 
-    keep_status = ["Open", "On Progress", "Approved"]
-    df = latest_df[latest_df["Status"].isin(keep_status)].copy()
+    rfa_df = latest_df[latest_df["Tracking Sheet"] == "RFA"].copy()
+    rfi_df = latest_df[latest_df["Tracking Sheet"] == "RFI"].copy()
 
-    categories = sorted(df["Category"].dropna().unique().tolist())
+    rfa_summary = build_one_summary(
+        rfa_df,
+        "RFA",
+        ["MAT", "MCR", "MTS", "CVI", "DWG"],
+    )
 
-    rows = []
+    rfi_summary = build_one_summary(
+        rfi_df,
+        "RFI",
+        [],
+    )
 
-    for status in keep_status:
-        status_df = df[df["Status"] == status]
+    # Keep columns clean and consistent for saving.
+    rfa_cols = ["Document Type", "Status", "Total", "MAT", "MCR", "MTS", "CVI", "DWG"]
+    rfa_summary = rfa_summary[rfa_cols]
 
-        row = {"Status": status, "Total": len(status_df)}
-        for cat in categories:
-            row[cat] = len(status_df[status_df["Category"] == cat])
-        rows.append(row)
+    rfi_summary = rfi_summary[["Document Type", "Status", "Total"]]
 
-    total_row = {"Status": "Total Document", "Total": len(df)}
-    for cat in categories:
-        total_row[cat] = len(df[df["Category"] == cat])
-    rows.append(total_row)
+    combined_summary = pd.concat([rfa_summary, rfi_summary], ignore_index=True)
 
-    summary_df = pd.DataFrame(rows)
-
-    preferred_cols = ["Status", "Total", "MAT", "MCR", "MTS", "CVI", "DWG"]
-    final_cols = [c for c in preferred_cols if c in summary_df.columns]
-    other_cols = [c for c in summary_df.columns if c not in final_cols]
-    summary_df = summary_df[final_cols + other_cols]
-
-    # Make dashboard cleaner: show 0 as "-"
-    display_df = summary_df.copy()
-    for col in display_df.columns:
-        if col != "Status":
-            display_df[col] = display_df[col].apply(lambda x: "-" if int(x) == 0 else int(x))
-
-    # Detail export/view should also use latest revision only
     latest_detail_df = latest_df.drop(columns=["Revision Sort", "Excel Row"], errors="ignore")
 
-    return display_df, latest_detail_df
+    return combined_summary, latest_detail_df
 
 
 # =========================================================
@@ -569,7 +602,7 @@ with st.sidebar:
         st.markdown("## 💎")
 
     st.markdown('<div class="sidebar-logo-title">TOPAZ</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.5.5.4</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.7.7.6.5.4</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -995,7 +1028,7 @@ if st.session_state.result_df is not None:
     status_summary_df = st.session_state.get("status_summary_df", None)
     status_detail_df = st.session_state.get("status_detail_df", None)
 
-    st.markdown('<div class="panel"><div class="panel-title">📌 Document Status Summary by Category (Latest Revision)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel"><div class="panel-title">📌 RFA / RFI Status Summary (Latest Revision)</div>', unsafe_allow_html=True)
 
     if status_summary_df is not None and not status_summary_df.empty:
         def highlight_status(row):
@@ -1012,22 +1045,39 @@ if st.session_state.result_df is not None:
 
             return [""] * len(row)
 
+        if "Document Type" in status_summary_df.columns:
+            rfa_summary_df = status_summary_df[status_summary_df["Document Type"] == "RFA"].drop(columns=["Document Type"], errors="ignore")
+            rfi_summary_df = status_summary_df[status_summary_df["Document Type"] == "RFI"].drop(columns=["Document Type"], errors="ignore")
+        else:
+            rfa_summary_df = status_summary_df.copy()
+            rfi_summary_df = pd.DataFrame()
+
+        st.markdown("#### 📋 RFA Status Summary")
         st.dataframe(
-            status_summary_df.style.apply(highlight_status, axis=1),
+            rfa_summary_df.style.apply(highlight_status, axis=1),
             use_container_width=True,
             hide_index=True,
         )
 
+        st.write("")
+
+        st.markdown("#### 📄 RFI Status Summary")
+        if not rfi_summary_df.empty:
+            st.dataframe(
+                rfi_summary_df.style.apply(highlight_status, axis=1),
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.info("No RFI summary data found.")
+
         st.download_button(
-            label="⬇️ Export Status Summary",
+            label="⬇️ Export RFA / RFI Status Summary",
             data=dataframe_to_excel_bytes(status_summary_df, "Status Summary"),
-            file_name="Topaz_Status_Summary_By_Category.xlsx",
+            file_name="Topaz_RFA_RFI_Status_Summary.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=False,
         )
-
-        # Drill Down removed in Clean version.
-        # Detailed document list remains available in the Document Action List panel below.
 
     else:
         st.info("No status summary available. Please generate dashboard again with Tracking_document.xlsx.")
