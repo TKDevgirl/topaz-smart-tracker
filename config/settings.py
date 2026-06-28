@@ -1,7 +1,7 @@
 from pathlib import Path
 
-APP_TITLE = "Topaz Smart Tracker V10.3"
-APP_VERSION = "V10.3 Practical Edition"
+APP_TITLE = "Topaz Smart Tracker V11"
+APP_VERSION = "V11 Enterprise Platform"
 PROJECT_NAME = "TOPAZ BKK1"
 APP_ICON = "💎"
 

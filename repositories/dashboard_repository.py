@@ -295,3 +295,99 @@ def load_action_trend_data() -> pd.DataFrame:
 
     conn.close()
     return df
+
+
+def load_run_kpis(run_id: int) -> dict:
+    """
+    Load KPI-level values for one run.
+    """
+    init_database()
+    conn = get_connection()
+
+    run_df = pd.read_sql_query(
+        """
+        SELECT
+            id,
+            run_time,
+            uploaded_by,
+            total_docs,
+            open_docs,
+            approval_rate,
+            health_score
+        FROM dashboard_runs
+        WHERE id = ?
+        """,
+        conn,
+        params=(run_id,),
+    )
+
+    action_df = pd.read_sql_query(
+        """
+        SELECT
+            action,
+            COUNT(*) AS count
+        FROM action_list
+        WHERE run_id = ?
+        GROUP BY action
+        """,
+        conn,
+        params=(run_id,),
+    )
+
+    conn.close()
+
+    if run_df.empty:
+        return {}
+
+    row = run_df.iloc[0].to_dict()
+    action_counts = {r["action"]: int(r["count"]) for _, r in action_df.iterrows()}
+
+    row["overdue"] = action_counts.get("OVERDUE / FOLLOW UP", 0)
+    row["returned"] = action_counts.get("RETURNED BY NV5 / NEED RESUBMIT", 0)
+    row["need_update"] = action_counts.get("UPDATE TRACKING TO CLOSED", 0)
+    row["open_process"] = action_counts.get("OPEN & ON PROCESS", 0)
+
+    return row
+
+
+def compare_runs(from_run_id: int, to_run_id: int) -> pd.DataFrame:
+    """
+    Compare KPI movement between two dashboard runs.
+    """
+    from_kpi = load_run_kpis(from_run_id)
+    to_kpi = load_run_kpis(to_run_id)
+
+    if not from_kpi or not to_kpi:
+        return pd.DataFrame()
+
+    metrics = [
+        ("Total Documents", "total_docs"),
+        ("Open Documents", "open_docs"),
+        ("Approval Rate", "approval_rate"),
+        ("Health Score", "health_score"),
+        ("Overdue", "overdue"),
+        ("Returned", "returned"),
+        ("Need Update", "need_update"),
+        ("Open & On Process", "open_process"),
+    ]
+
+    rows = []
+    for label, key in metrics:
+        old_value = from_kpi.get(key, 0) or 0
+        new_value = to_kpi.get(key, 0) or 0
+
+        try:
+            change = round(float(new_value) - float(old_value), 2)
+        except Exception:
+            change = ""
+
+        rows.append(
+            {
+                "Metric": label,
+                "From Run": old_value,
+                "To Run": new_value,
+                "Change": change,
+            }
+        )
+
+    return pd.DataFrame(rows)

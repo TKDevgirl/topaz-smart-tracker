@@ -1,34 +1,25 @@
-# Topaz Smart Tracker V10.3 Practical Edition
+# Topaz Smart Tracker V11 Enterprise Platform
 
-Enterprise-style Streamlit dashboard for Topaz BKK1 ICT Document Control.
+Enterprise-style Streamlit platform for Topaz BKK1 ICT Document Control.
 
-## Added in V10.1
+## V11 Highlights
 
-- Trend Dashboard from SQLite `run_id`
-- Approval Rate trend
-- Health Score trend
-- Open Documents trend
-- Key Action trend
-
-## Added in V10.2
-
-- Weekly Report Excel export
-- KPI sheet
-- Insights sheet
-- Actions sheet
-- Status Summary sheet
-- Trend sheet
-- Action List sheet
-
-## Added in V10.3
-
-- Alert Rules
-- Overdue > 0
-- Returned > 5
-- Need Update > 0
+- Executive Sync Bar
+- SQLite connection status
+- Health and last sync summary
+- Alert Center
+- Snapshot Compare
+- Executive Run Timeline
+- Export Center
+- Keeps V10 SQLite, Trend, Weekly Report, Smart Search, Timeline, and Alerts
 
 ## Run
 
 ```bash
 streamlit run app.py
 ```
+
+## Login
+
+- Admin usernames: `admin`, `pavinee`
+- Other usernames become Viewer
