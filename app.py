@@ -9,9 +9,12 @@ from config.settings import APP_ICON, APP_TITLE
 from core.session import init_session_state
 from core.storage import hydrate_session_from_latest, save_latest_dashboard
 from services.report_service import generate_report
+from services.history_service import save_history_snapshot
 from ui.cards import render_kpi_cards
 from ui.layout import render_header, render_role_message
 from ui.sidebar import render_sidebar
+from ui.executive import render_category_analytics, render_executive_dashboard
+from ui.history import render_history_panel
 from ui.tables import (
     render_action_summary,
     render_document_action_list,
@@ -68,6 +71,8 @@ def render_admin_upload() -> None:
         st.session_state.status_detail_df = status_detail_df
         st.session_state.last_updated = last_updated or datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
+        save_history_snapshot(status_summary_df, result_df)
+
         st.rerun()
 
 
@@ -93,8 +98,11 @@ def render_dashboard() -> None:
     st.write("")
     st.write("")
 
+    render_executive_dashboard()
+    render_category_analytics()
     render_action_summary(action_counts)
     render_status_summary_panel()
+    render_history_panel()
     render_document_action_list(result_df)
 
 

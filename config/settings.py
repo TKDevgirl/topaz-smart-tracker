@@ -1,7 +1,7 @@
 from pathlib import Path
 
-APP_TITLE = "Topaz Smart Tracker"
-APP_VERSION = "V7 Enterprise"
+APP_TITLE = "Topaz Smart Tracker V8"
+APP_VERSION = "V8.0 AI Platform"
 PROJECT_NAME = "TOPAZ BKK1"
 APP_ICON = "💎"
 
@@ -20,3 +20,6 @@ LATEST_META_JSON = DATA_DIR / "latest_meta.json"
 LATEST_REPORT_XLSX = DATA_DIR / "latest_report.xlsx"
 LATEST_STATUS_SUMMARY_CSV = DATA_DIR / "latest_status_summary.csv"
 LATEST_STATUS_DETAIL_CSV = DATA_DIR / "latest_status_detail.csv"
+
+HISTORY_DIR = DATA_DIR / "history"
+HISTORY_DIR.mkdir(parents=True, exist_ok=True)
