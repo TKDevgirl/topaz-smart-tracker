@@ -23,9 +23,9 @@ def render_header() -> None:
                 <div>{render_logo_html()}</div>
                 <div>
                     <div class="hero-title">Topaz Smart Document Tracker</div>
-                    <div class="hero-subtitle">{PROJECT_NAME} | ICT Document Control Dashboard</div>
+                    <div class="hero-subtitle">{PROJECT_NAME} | Executive Document Control Dashboard</div>
                 </div>
-                <div class="hero-badge">V7 Enterprise</div>
+                <div class="hero-badge">V10 SQLite</div>
             </div>
         </div>
         """,

@@ -22,38 +22,61 @@ def highlight_status(row):
 
 
 def render_action_summary(action_counts: dict[str, int]) -> None:
-    chart_col, table_col = st.columns([1.4, 1])
+    st.markdown('<div class="panel"><div class="panel-title">📊 Action Summary</div>', unsafe_allow_html=True)
 
-    with chart_col:
-        st.markdown('<div class="panel"><div class="panel-title">📊 Action Summary</div>', unsafe_allow_html=True)
+    summary_df = pd.DataFrame([{"Action": k, "Count": v} for k, v in action_counts.items()])
 
-        summary_df = pd.DataFrame([{"Action": k, "Count": v} for k, v in action_counts.items()])
-
-        if not summary_df.empty:
-            st.bar_chart(summary_df.set_index("Action"))
-            st.dataframe(summary_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No action data found.")
-
+    if summary_df.empty:
+        st.info("No action data found.")
         st.markdown("</div>", unsafe_allow_html=True)
+        return
 
-    with table_col:
-        st.markdown('<div class="panel"><div class="panel-title">🧭 Quick Action</div>', unsafe_allow_html=True)
+    summary_df = summary_df.sort_values("Count", ascending=False)
+    max_count = max(summary_df["Count"].max(), 1)
 
-        quick_items = [
-            ("Returned by NV5", action_counts.get("RETURNED BY NV5 / NEED RESUBMIT", 0)),
-            ("Need update closed", action_counts.get("UPDATE TRACKING TO CLOSED", 0)),
-            ("Overdue follow up", action_counts.get("OVERDUE / FOLLOW UP", 0)),
-            ("Not found in Takenaka", action_counts.get("NOT FOUND IN TAKENAKA SOURCE", 0)),
-        ]
+    for _, row in summary_df.iterrows():
+        action = row["Action"]
+        count = int(row["Count"])
+        width = round((count / max_count) * 100, 1)
 
-        for label, count in quick_items:
+        st.markdown(
+            f"""
+            <div style="display:grid;grid-template-columns:260px 1fr 48px;gap:14px;align-items:center;margin-bottom:12px;">
+                <div style="font-weight:800;color:#334155;">{action}</div>
+                <div style="height:14px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+                    <div style="height:14px;width:{width}%;background:linear-gradient(90deg,#2563eb,#7c3aed);"></div>
+                </div>
+                <div class="count-pill" style="text-align:center;">{count}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="panel"><div class="panel-title">🧭 Quick Action</div>', unsafe_allow_html=True)
+
+    quick_items = [
+        ("Returned by NV5", action_counts.get("RETURNED BY NV5 / NEED RESUBMIT", 0)),
+        ("Need update closed", action_counts.get("UPDATE TRACKING TO CLOSED", 0)),
+        ("Overdue follow up", action_counts.get("OVERDUE / FOLLOW UP", 0)),
+        ("Not found in Takenaka", action_counts.get("NOT FOUND IN TAKENAKA SOURCE", 0)),
+    ]
+
+    q1, q2, q3, q4 = st.columns(4)
+    for col, (label, count) in zip([q1, q2, q3, q4], quick_items):
+        with col:
             st.markdown(
-                f'<div class="quick-row"><span>{label}</span><span class="count-pill">{count}</span></div>',
+                f"""
+                <div class="quick-row">
+                    <span>{label}</span>
+                    <span class="count-pill">{count}</span>
+                </div>
+                """,
                 unsafe_allow_html=True,
             )
 
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_status_summary_panel() -> None:
@@ -73,24 +96,31 @@ def render_status_summary_panel() -> None:
             status_summary_df["Document Type"] == "RFI"
         ].drop(columns=["Document Type"], errors="ignore")
 
-        st.markdown("#### 📋 RFA Status Summary")
-        st.dataframe(
-            rfa_summary_df.style.apply(highlight_status, axis=1),
-            use_container_width=True,
-            hide_index=True,
-        )
+        tab_rfa, tab_rfi, tab_all = st.tabs(["📋 RFA", "📄 RFI", "📊 Combined"])
 
-        st.write("")
-
-        st.markdown("#### 📄 RFI Status Summary")
-        if not rfi_summary_df.empty:
+        with tab_rfa:
             st.dataframe(
-                rfi_summary_df.style.apply(highlight_status, axis=1),
+                rfa_summary_df.style.apply(highlight_status, axis=1),
                 use_container_width=True,
                 hide_index=True,
             )
-        else:
-            st.info("No RFI summary data found.")
+
+        with tab_rfi:
+            if not rfi_summary_df.empty:
+                st.dataframe(
+                    rfi_summary_df.style.apply(highlight_status, axis=1),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.info("No RFI summary data found.")
+
+        with tab_all:
+            st.dataframe(
+                status_summary_df.style.apply(highlight_status, axis=1),
+                use_container_width=True,
+                hide_index=True,
+            )
 
         st.download_button(
             label="⬇️ Export RFA / RFI Status Summary",

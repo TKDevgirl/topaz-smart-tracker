@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from config.settings import APP_ICON, APP_TITLE
+from core.database import init_database
 from core.session import init_session_state
 from core.storage import hydrate_session_from_latest, save_latest_dashboard
 from services.report_service import generate_report
@@ -15,6 +16,7 @@ from ui.layout import render_header, render_role_message
 from ui.sidebar import render_sidebar
 from ui.executive import render_category_analytics, render_executive_dashboard
 from ui.history import render_history_panel
+from ui.database import render_database_panel
 from ui.search import render_document_timeline_panel, render_smart_search_panel
 from ui.tables import (
     render_action_summary,
@@ -105,6 +107,7 @@ def render_dashboard() -> None:
     render_document_timeline_panel()
     render_action_summary(action_counts)
     render_status_summary_panel()
+    render_database_panel()
     render_history_panel()
     render_document_action_list(result_df)
 
@@ -116,6 +119,7 @@ def main() -> None:
         layout="wide",
     )
 
+    init_database()
     apply_theme()
     init_session_state()
     render_sidebar()

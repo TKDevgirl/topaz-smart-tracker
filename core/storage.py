@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from io import BytesIO
 from typing import Any
@@ -8,14 +7,13 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from config.settings import (
-    DATA_DIR,
-    LATEST_META_JSON,
-    LATEST_REPORT_XLSX,
-    LATEST_RESULT_CSV,
-    LATEST_STATUS_DETAIL_CSV,
-    LATEST_STATUS_SUMMARY_CSV,
+from config.settings import DATA_DIR, LATEST_REPORT_XLSX
+from repositories.dashboard_repository import (
+    list_dashboard_runs,
+    load_dashboard_run,
+    save_dashboard_run,
 )
+from services.analytics_service import calculate_project_health
 
 
 def save_latest_dashboard(
@@ -29,63 +27,65 @@ def save_latest_dashboard(
 ) -> str:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    result_df.to_csv(LATEST_RESULT_CSV, index=False, encoding="utf-8-sig")
+    health = calculate_project_health(status_summary_df, action_counts)
+    uploaded_by = st.session_state.get("username", "")
 
-    if status_summary_df is not None and not status_summary_df.empty:
-        status_summary_df.to_csv(LATEST_STATUS_SUMMARY_CSV, index=False, encoding="utf-8-sig")
+    save_dashboard_run(
+        result_df=result_df,
+        status_summary_df=status_summary_df,
+        status_detail_df=status_detail_df,
+        total_docs=total_docs,
+        open_docs=open_docs,
+        approval_rate=float(health.get("approved_rate", 0)),
+        health_score=float(health.get("score", 0)),
+        uploaded_by=uploaded_by,
+    )
 
-    if status_detail_df is not None and not status_detail_df.empty:
-        status_detail_df.to_csv(LATEST_STATUS_DETAIL_CSV, index=False, encoding="utf-8-sig")
-
+    # Keep the latest Excel report file for the download button.
     with open(LATEST_REPORT_XLSX, "wb") as file:
         file.write(report.getvalue())
 
-    last_updated = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
-
-    meta = {
-        "total_docs": int(total_docs),
-        "open_docs": int(open_docs),
-        "action_counts": action_counts,
-        "last_updated": last_updated,
-    }
-
-    with open(LATEST_META_JSON, "w", encoding="utf-8") as file:
-        json.dump(meta, file, ensure_ascii=False, indent=2)
-
-    return last_updated
-
-
-def load_latest_dashboard() -> tuple[pd.DataFrame | None, dict[str, Any] | None, bytes | None, pd.DataFrame | None, pd.DataFrame | None]:
-    if not LATEST_RESULT_CSV.exists() or not LATEST_META_JSON.exists():
-        return None, None, None, None, None
-
-    result_df = pd.read_csv(LATEST_RESULT_CSV)
-
-    with open(LATEST_META_JSON, "r", encoding="utf-8") as file:
-        meta = json.load(file)
-
-    report_bytes = LATEST_REPORT_XLSX.read_bytes() if LATEST_REPORT_XLSX.exists() else None
-
-    status_summary_df = pd.read_csv(LATEST_STATUS_SUMMARY_CSV) if LATEST_STATUS_SUMMARY_CSV.exists() else None
-    status_detail_df = pd.read_csv(LATEST_STATUS_DETAIL_CSV) if LATEST_STATUS_DETAIL_CSV.exists() else None
-
-    return result_df, meta, report_bytes, status_summary_df, status_detail_df
+    return datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
 
 def hydrate_session_from_latest() -> None:
     if st.session_state.result_df is not None:
         return
 
-    result_df, meta, report_bytes, status_summary_df, status_detail_df = load_latest_dashboard()
+    meta, result_df, status_summary_df, status_detail_df = load_dashboard_run()
 
-    if result_df is None or meta is None:
+    if meta is None:
         return
 
+    action_counts = result_df["Action"].value_counts().to_dict() if result_df is not None and not result_df.empty else {}
+
     st.session_state.result_df = result_df
-    st.session_state.report = report_bytes
+    st.session_state.report = LATEST_REPORT_XLSX.read_bytes() if LATEST_REPORT_XLSX.exists() else None
     st.session_state.total_docs = int(meta.get("total_docs", 0))
     st.session_state.open_docs = int(meta.get("open_docs", 0))
-    st.session_state.action_counts = meta.get("action_counts", {})
-    st.session_state.last_updated = meta.get("last_updated", "")
+    st.session_state.action_counts = action_counts
+    st.session_state.last_updated = meta.get("run_time", "")
+    st.session_state.status_summary_df = status_summary_df
+    st.session_state.status_detail_df = status_detail_df
+
+
+def get_dashboard_runs() -> pd.DataFrame:
+    return list_dashboard_runs()
+
+
+def load_run_to_session(run_id: int) -> None:
+    meta, result_df, status_summary_df, status_detail_df = load_dashboard_run(run_id)
+
+    if meta is None:
+        return
+
+    action_counts = result_df["Action"].value_counts().to_dict() if result_df is not None and not result_df.empty else {}
+
+    st.session_state.result_df = result_df
+    st.session_state.report = LATEST_REPORT_XLSX.read_bytes() if LATEST_REPORT_XLSX.exists() else None
+    st.session_state.total_docs = int(meta.get("total_docs", 0))
+    st.session_state.open_docs = int(meta.get("open_docs", 0))
+    st.session_state.action_counts = action_counts
+    st.session_state.last_updated = meta.get("run_time", "")
     st.session_state.status_summary_df = status_summary_df
     st.session_state.status_detail_df = status_detail_df

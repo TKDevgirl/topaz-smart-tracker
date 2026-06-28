@@ -1,16 +1,29 @@
-# Topaz Smart Tracker V8.1 Smart Search
+# Topaz Smart Tracker V10 SQLite Edition
 
 Enterprise-style Streamlit dashboard for Topaz BKK1 ICT Document Control.
 
-## V8.1 New Features
+## V10 Highlights
 
-- Smart Document Search
-- Search by Document No / Name / Info / Category / Status
-- Document Timeline panel
-- Export search results
-- Keeps V8.0 Executive AI-style overview
-- Keeps Project Health Score
-- Keeps History Snapshot
+- SQLite database storage
+- `data/topaz_tracker.db`
+- Every Generate creates a new `run_id`
+- Dashboard loads the latest run by default
+- Historical snapshots can be loaded from SQLite
+- Excel upload still controls the dashboard data
+- If Excel changes, upload and Generate again to update SQLite
+
+## Main Flow
+
+```text
+Tracking_document.xlsx
+Takenaka Summary.xlsx
+        ↓
+Generate Dashboard
+        ↓
+SQLite Database
+        ↓
+Dashboard / Search / Timeline / Analytics
+```
 
 ## Run
 

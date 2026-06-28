@@ -1,7 +1,7 @@
 from pathlib import Path
 
-APP_TITLE = "Topaz Smart Tracker V8.1"
-APP_VERSION = "V8.1 Smart Search"
+APP_TITLE = "Topaz Smart Tracker V10"
+APP_VERSION = "V10 SQLite Edition"
 PROJECT_NAME = "TOPAZ BKK1"
 APP_ICON = "💎"
 
@@ -23,3 +23,5 @@ LATEST_STATUS_DETAIL_CSV = DATA_DIR / "latest_status_detail.csv"
 
 HISTORY_DIR = DATA_DIR / "history"
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+
+DATABASE_PATH = DATA_DIR / "topaz_tracker.db"
