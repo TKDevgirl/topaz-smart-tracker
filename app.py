@@ -15,6 +15,7 @@ from ui.layout import render_header, render_role_message
 from ui.sidebar import render_sidebar
 from ui.executive import render_category_analytics, render_executive_dashboard
 from ui.history import render_history_panel
+from ui.search import render_document_timeline_panel, render_smart_search_panel
 from ui.tables import (
     render_action_summary,
     render_document_action_list,
@@ -100,6 +101,8 @@ def render_dashboard() -> None:
 
     render_executive_dashboard()
     render_category_analytics()
+    render_smart_search_panel()
+    render_document_timeline_panel()
     render_action_summary(action_counts)
     render_status_summary_panel()
     render_history_panel()
