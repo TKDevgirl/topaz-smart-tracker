@@ -35,6 +35,7 @@ LATEST_CSV = DATA_DIR / "latest_result.csv"
 LATEST_META = DATA_DIR / "latest_meta.json"
 LATEST_REPORT = DATA_DIR / "latest_report.xlsx"
 LATEST_STATUS_SUMMARY = DATA_DIR / "latest_status_summary.csv"
+LATEST_STATUS_DETAIL = DATA_DIR / "latest_status_detail.csv"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -289,6 +290,16 @@ def render_logo_html(size_class: str = "hero-logo") -> str:
     return '<div style="font-size:62px;">💎</div>'
 
 
+def dataframe_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Summary") -> bytes:
+    output = BytesIO()
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name=sheet_name)
+
+    output.seek(0)
+    return output.getvalue()
+
+
 # =========================================================
 # NEW: STATUS SUMMARY FROM RFA / RFI
 # =========================================================
@@ -323,13 +334,17 @@ def get_column_by_name_or_position(ws, preferred_name, fallback_letter):
     return fallback_letter
 
 
-def build_status_summary_from_tracking(tracking_file) -> pd.DataFrame:
+def build_status_summary_from_tracking(tracking_file):
     """
     Read Sheet RFA and RFI.
     Use Category + Status.
     Fallback:
     - Category = Column C
     - Status = Column F
+
+    Return:
+    - summary_df for dashboard
+    - detail_df for drill down
     """
     wb = load_workbook(tracking_file, data_only=True)
 
@@ -345,8 +360,11 @@ def build_status_summary_from_tracking(tracking_file) -> pd.DataFrame:
         status_col = get_column_by_name_or_position(ws, "Status", "F")
 
         for row in range(2, ws.max_row + 1):
+            doc_no = ws[f"B{row}"].value
             category = ws[f"{category_col}{row}"].value
+            doc_name = ws[f"D{row}"].value
             status = ws[f"{status_col}{row}"].value
+            info = ws[f"G{row}"].value
 
             category_text = str(category or "").strip()
             status_text = normalize_status(status)
@@ -360,18 +378,21 @@ def build_status_summary_from_tracking(tracking_file) -> pd.DataFrame:
             records.append(
                 {
                     "Tracking Sheet": sheet,
+                    "Document No": doc_no,
                     "Category": category_text,
+                    "Document Name": doc_name,
                     "Status": status_text,
+                    "Info": info,
                 }
             )
 
-    raw_df = pd.DataFrame(records)
+    detail_df = pd.DataFrame(records)
 
-    if raw_df.empty:
-        return pd.DataFrame()
+    if detail_df.empty:
+        return pd.DataFrame(), pd.DataFrame()
 
     keep_status = ["Open", "On Progress", "Approved"]
-    df = raw_df[raw_df["Status"].isin(keep_status)].copy()
+    df = detail_df[detail_df["Status"].isin(keep_status)].copy()
 
     categories = sorted(df["Category"].dropna().unique().tolist())
 
@@ -403,7 +424,7 @@ def build_status_summary_from_tracking(tracking_file) -> pd.DataFrame:
         if col != "Status":
             display_df[col] = display_df[col].apply(lambda x: "-" if int(x) == 0 else int(x))
 
-    return display_df
+    return display_df, df
 
 
 # =========================================================
@@ -416,6 +437,7 @@ def save_latest_dashboard(
     open_docs: int,
     action_counts: dict,
     status_summary_df: pd.DataFrame,
+    status_detail_df: pd.DataFrame,
 ) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -423,6 +445,9 @@ def save_latest_dashboard(
 
     if status_summary_df is not None and not status_summary_df.empty:
         status_summary_df.to_csv(LATEST_STATUS_SUMMARY, index=False, encoding="utf-8-sig")
+
+    if status_detail_df is not None and not status_detail_df.empty:
+        status_detail_df.to_csv(LATEST_STATUS_DETAIL, index=False, encoding="utf-8-sig")
 
     with open(LATEST_REPORT, "wb") as f:
         f.write(report.getvalue())
@@ -453,14 +478,18 @@ def load_latest_dashboard():
     if LATEST_STATUS_SUMMARY.exists():
         status_summary_df = pd.read_csv(LATEST_STATUS_SUMMARY)
 
-    return df, meta, report_bytes, status_summary_df
+    status_detail_df = None
+    if LATEST_STATUS_DETAIL.exists():
+        status_detail_df = pd.read_csv(LATEST_STATUS_DETAIL)
+
+    return df, meta, report_bytes, status_summary_df, status_detail_df
 
 
 def hydrate_session_from_latest() -> None:
     if st.session_state.result_df is not None:
         return
 
-    df, meta, report_bytes, status_summary_df = load_latest_dashboard()
+    df, meta, report_bytes, status_summary_df, status_detail_df = load_latest_dashboard()
 
     if df is None or meta is None:
         return
@@ -472,6 +501,7 @@ def hydrate_session_from_latest() -> None:
     st.session_state.action_counts = meta.get("action_counts", {})
     st.session_state.last_updated = meta.get("last_updated", "")
     st.session_state.status_summary_df = status_summary_df
+    st.session_state.status_detail_df = status_detail_df
 
 
 # =========================================================
@@ -494,7 +524,7 @@ with st.sidebar:
         st.markdown("## 💎")
 
     st.markdown('<div class="sidebar-logo-title">TOPAZ</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.1</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.4.4</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -584,7 +614,7 @@ def generate_report(tracking_file, takenaka_file):
 
     # NEW: build status summary before openpyxl changes the workbook
     tracking_file.seek(0)
-    status_summary_df = build_status_summary_from_tracking(tracking_file)
+    status_summary_df, status_detail_df = build_status_summary_from_tracking(tracking_file)
     tracking_file.seek(0)
 
     wb = load_workbook(tracking_file)
@@ -750,7 +780,7 @@ def generate_report(tracking_file, takenaka_file):
     wb.save(output)
     output.seek(0)
 
-    return output, total_docs, open_docs, rows, status_summary_df
+    return output, total_docs, open_docs, rows, status_summary_df, status_detail_df
 
 
 # =========================================================
@@ -764,6 +794,7 @@ if "result_df" not in st.session_state:
     st.session_state.action_counts = {}
     st.session_state.last_updated = ""
     st.session_state.status_summary_df = None
+    st.session_state.status_detail_df = None
 
 hydrate_session_from_latest()
 
@@ -812,12 +843,12 @@ if st.session_state.role == "admin":
 
     if tracking_file and takenaka_file and generate_clicked:
         with st.spinner("Reading files and generating dashboard..."):
-            report, total_docs, open_docs, rows, status_summary_df = generate_report(tracking_file, takenaka_file)
+            report, total_docs, open_docs, rows, status_summary_df, status_detail_df = generate_report(tracking_file, takenaka_file)
 
         df = pd.DataFrame(rows)
         action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
 
-        save_latest_dashboard(df, report, total_docs, open_docs, action_counts, status_summary_df)
+        save_latest_dashboard(df, report, total_docs, open_docs, action_counts, status_summary_df, status_detail_df)
 
         st.session_state.result_df = df
         st.session_state.report = report
@@ -825,6 +856,8 @@ if st.session_state.role == "admin":
         st.session_state.open_docs = open_docs
         st.session_state.action_counts = action_counts
         st.session_state.status_summary_df = status_summary_df
+        st.session_state.status_detail_df = status_detail_df
+    st.session_state.status_detail_df = status_detail_df
         st.session_state.last_updated = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
         st.rerun()
@@ -910,14 +943,84 @@ if st.session_state.result_df is not None:
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =====================================================
-    # NEW PANEL: RAW DATA STATUS SUMMARY FROM RFA / RFI
+    # V6.1.2 / V6.1.3 / V6.1.4
+    # - Color Summary
+    # - Export Summary
+    # - Drill Down
     # =====================================================
     status_summary_df = st.session_state.get("status_summary_df", None)
+    status_detail_df = st.session_state.get("status_detail_df", None)
 
     st.markdown('<div class="panel"><div class="panel-title">📌 Document Status Summary by Category</div>', unsafe_allow_html=True)
 
     if status_summary_df is not None and not status_summary_df.empty:
-        st.dataframe(status_summary_df, use_container_width=True, hide_index=True)
+        def highlight_status(row):
+            status = str(row.get("Status", ""))
+
+            if status == "Open":
+                return ["background-color: #dbeafe; color: #1e3a8a; font-weight: 800"] * len(row)
+            if status == "On Progress":
+                return ["background-color: #fef3c7; color: #92400e; font-weight: 800"] * len(row)
+            if status == "Approved":
+                return ["background-color: #dcfce7; color: #166534; font-weight: 800"] * len(row)
+            if status == "Total Document":
+                return ["background-color: #ede9fe; color: #4c1d95; font-weight: 950"] * len(row)
+
+            return [""] * len(row)
+
+        st.dataframe(
+            status_summary_df.style.apply(highlight_status, axis=1),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.download_button(
+            label="⬇️ Export Status Summary",
+            data=dataframe_to_excel_bytes(status_summary_df, "Status Summary"),
+            file_name="Topaz_Status_Summary_By_Category.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=False,
+        )
+
+        st.markdown("#### 🔎 Drill Down")
+
+        if status_detail_df is not None and not status_detail_df.empty:
+            drill_col_1, drill_col_2 = st.columns(2)
+
+            with drill_col_1:
+                drill_status = st.selectbox(
+                    "Select Status",
+                    ["All"] + sorted(status_detail_df["Status"].dropna().unique().tolist()),
+                    key="drill_status",
+                )
+
+            with drill_col_2:
+                drill_category = st.selectbox(
+                    "Select Category",
+                    ["All"] + sorted(status_detail_df["Category"].dropna().unique().tolist()),
+                    key="drill_category",
+                )
+
+            drill_df = status_detail_df.copy()
+
+            if drill_status != "All":
+                drill_df = drill_df[drill_df["Status"] == drill_status]
+
+            if drill_category != "All":
+                drill_df = drill_df[drill_df["Category"] == drill_category]
+
+            st.dataframe(drill_df, use_container_width=True, hide_index=True, height=280)
+
+            st.download_button(
+                label="⬇️ Export Drill Down",
+                data=dataframe_to_excel_bytes(drill_df, "Drill Down"),
+                file_name="Topaz_Status_Drill_Down.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=False,
+            )
+        else:
+            st.info("No drill down data available. Please generate dashboard again.")
+
     else:
         st.info("No status summary available. Please generate dashboard again with Tracking_document.xlsx.")
 
