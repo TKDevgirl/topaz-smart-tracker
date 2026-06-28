@@ -245,3 +245,53 @@ def list_dashboard_runs() -> pd.DataFrame:
 
     conn.close()
     return runs_df
+
+
+def load_trend_data() -> pd.DataFrame:
+    """
+    Load run-level trend data from SQLite.
+    """
+    init_database()
+    conn = get_connection()
+
+    trend_df = pd.read_sql_query(
+        """
+        SELECT
+            id AS run_id,
+            run_time,
+            total_docs,
+            open_docs,
+            approval_rate,
+            health_score
+        FROM dashboard_runs
+        ORDER BY id
+        """,
+        conn,
+    )
+
+    conn.close()
+    return trend_df
+
+
+def load_action_trend_data() -> pd.DataFrame:
+    """
+    Load action counts by run_id for trend dashboard.
+    """
+    init_database()
+    conn = get_connection()
+
+    df = pd.read_sql_query(
+        """
+        SELECT
+            run_id,
+            action,
+            COUNT(*) AS count
+        FROM action_list
+        GROUP BY run_id, action
+        ORDER BY run_id
+        """,
+        conn,
+    )
+
+    conn.close()
+    return df

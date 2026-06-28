@@ -11,6 +11,7 @@ from core.session import init_session_state
 from core.storage import hydrate_session_from_latest, save_latest_dashboard
 from services.report_service import generate_report
 from services.history_service import save_history_snapshot
+from ui.alerts import render_alert_panel
 from ui.cards import render_kpi_cards
 from ui.layout import render_header, render_role_message
 from ui.sidebar import render_sidebar
@@ -18,6 +19,8 @@ from ui.executive import render_category_analytics, render_executive_dashboard
 from ui.history import render_history_panel
 from ui.database import render_database_panel
 from ui.search import render_document_timeline_panel, render_smart_search_panel
+from ui.trend import render_trend_dashboard
+from ui.weekly_report import render_weekly_report_panel
 from ui.tables import (
     render_action_summary,
     render_document_action_list,
@@ -101,7 +104,10 @@ def render_dashboard() -> None:
     st.write("")
     st.write("")
 
+    render_alert_panel()
     render_executive_dashboard()
+    render_trend_dashboard()
+    render_weekly_report_panel()
     render_category_analytics()
     render_smart_search_panel()
     render_document_timeline_panel()

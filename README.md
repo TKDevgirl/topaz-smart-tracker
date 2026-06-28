@@ -1,37 +1,34 @@
-# Topaz Smart Tracker V10 SQLite Edition
+# Topaz Smart Tracker V10.3 Practical Edition
 
 Enterprise-style Streamlit dashboard for Topaz BKK1 ICT Document Control.
 
-## V10 Highlights
+## Added in V10.1
 
-- SQLite database storage
-- `data/topaz_tracker.db`
-- Every Generate creates a new `run_id`
-- Dashboard loads the latest run by default
-- Historical snapshots can be loaded from SQLite
-- Excel upload still controls the dashboard data
-- If Excel changes, upload and Generate again to update SQLite
+- Trend Dashboard from SQLite `run_id`
+- Approval Rate trend
+- Health Score trend
+- Open Documents trend
+- Key Action trend
 
-## Main Flow
+## Added in V10.2
 
-```text
-Tracking_document.xlsx
-Takenaka Summary.xlsx
-        ↓
-Generate Dashboard
-        ↓
-SQLite Database
-        ↓
-Dashboard / Search / Timeline / Analytics
-```
+- Weekly Report Excel export
+- KPI sheet
+- Insights sheet
+- Actions sheet
+- Status Summary sheet
+- Trend sheet
+- Action List sheet
+
+## Added in V10.3
+
+- Alert Rules
+- Overdue > 0
+- Returned > 5
+- Need Update > 0
 
 ## Run
 
 ```bash
 streamlit run app.py
 ```
-
-## Login
-
-- Admin usernames: `admin`, `pavinee`
-- Other usernames become Viewer
