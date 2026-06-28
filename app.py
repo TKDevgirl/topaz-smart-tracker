@@ -377,11 +377,6 @@ def build_status_summary_from_tracking(tracking_file) -> pd.DataFrame:
 
     rows = []
 
-    total_row = {"Status": "Total Document", "Total": len(df)}
-    for cat in categories:
-        total_row[cat] = len(df[df["Category"] == cat])
-    rows.append(total_row)
-
     for status in keep_status:
         status_df = df[df["Status"] == status]
 
@@ -390,13 +385,25 @@ def build_status_summary_from_tracking(tracking_file) -> pd.DataFrame:
             row[cat] = len(status_df[status_df["Category"] == cat])
         rows.append(row)
 
+    total_row = {"Status": "Total Document", "Total": len(df)}
+    for cat in categories:
+        total_row[cat] = len(df[df["Category"] == cat])
+    rows.append(total_row)
+
     summary_df = pd.DataFrame(rows)
 
     preferred_cols = ["Status", "Total", "MAT", "MCR", "MTS", "CVI", "DWG"]
     final_cols = [c for c in preferred_cols if c in summary_df.columns]
     other_cols = [c for c in summary_df.columns if c not in final_cols]
+    summary_df = summary_df[final_cols + other_cols]
 
-    return summary_df[final_cols + other_cols]
+    # Make dashboard cleaner: show 0 as "-"
+    display_df = summary_df.copy()
+    for col in display_df.columns:
+        if col != "Status":
+            display_df[col] = display_df[col].apply(lambda x: "-" if int(x) == 0 else int(x))
+
+    return display_df
 
 
 # =========================================================
@@ -487,7 +494,7 @@ with st.sidebar:
         st.markdown("## 💎")
 
     st.markdown('<div class="sidebar-logo-title">TOPAZ</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.1</div>', unsafe_allow_html=True)
 
     st.divider()
 
