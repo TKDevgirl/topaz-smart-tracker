@@ -465,7 +465,7 @@ def save_latest_dashboard(
 
 def load_latest_dashboard():
     if not LATEST_CSV.exists() or not LATEST_META.exists():
-        return None, None, None, None
+        return None, None, None, None, None
 
     df = pd.read_csv(LATEST_CSV)
 
