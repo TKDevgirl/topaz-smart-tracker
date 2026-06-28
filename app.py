@@ -489,14 +489,13 @@ def build_status_summary_from_tracking(tracking_file):
     rfi_summary = build_one_summary(
         rfi_df,
         "RFI",
-        [],
+        ["MAT", "MCR", "MTS", "CVI", "DWG"],
     )
 
     # Keep columns clean and consistent for saving.
-    rfa_cols = ["Document Type", "Status", "Total", "MAT", "MCR", "MTS", "CVI", "DWG"]
-    rfa_summary = rfa_summary[rfa_cols]
-
-    rfi_summary = rfi_summary[["Document Type", "Status", "Total"]]
+    summary_cols = ["Document Type", "Status", "Total", "MAT", "MCR", "MTS", "CVI", "DWG"]
+    rfa_summary = rfa_summary[summary_cols]
+    rfi_summary = rfi_summary[summary_cols]
 
     combined_summary = pd.concat([rfa_summary, rfi_summary], ignore_index=True)
 
@@ -602,7 +601,7 @@ with st.sidebar:
         st.markdown("## 💎")
 
     st.markdown('<div class="sidebar-logo-title">TOPAZ</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.7.7.6.5.4</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-subtitle">Smart Document Tracker V6.1.8.8.7.6.5.4</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -1028,7 +1027,7 @@ if st.session_state.result_df is not None:
     status_summary_df = st.session_state.get("status_summary_df", None)
     status_detail_df = st.session_state.get("status_detail_df", None)
 
-    st.markdown('<div class="panel"><div class="panel-title">📌 RFA / RFI Status Summary (Latest Revision)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel"><div class="panel-title">📌 RFA / RFI Status Summary by Category (Latest Revision)</div>', unsafe_allow_html=True)
 
     if status_summary_df is not None and not status_summary_df.empty:
         def highlight_status(row):
