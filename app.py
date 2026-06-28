@@ -1,42 +1,30 @@
+from __future__ import annotations
+
+from datetime import datetime
+
 import pandas as pd
 import streamlit as st
 
-from config import APP_TITLE
-from report_generator import generate_report
-from storage import hydrate_session_from_latest, save_latest_dashboard
-from style import apply_style
-from ui_components import (
-    init_session_state,
+from config.settings import APP_ICON, APP_TITLE
+from core.session import init_session_state
+from core.storage import hydrate_session_from_latest, save_latest_dashboard
+from services.report_service import generate_report
+from ui.cards import render_kpi_cards
+from ui.layout import render_header, render_role_message
+from ui.sidebar import render_sidebar
+from ui.tables import (
     render_action_summary,
     render_document_action_list,
-    render_header,
-    render_kpi_cards,
-    render_sidebar,
     render_status_summary_panel,
 )
+from ui.theme import apply_theme
 
 
-st.set_page_config(
-    page_title=APP_TITLE,
-    page_icon="💎",
-    layout="wide",
-)
+def render_admin_upload() -> None:
+    render_role_message()
 
-apply_style()
-init_session_state()
-render_sidebar()
-hydrate_session_from_latest()
-render_header()
-
-
-# =========================================================
-# ADMIN UPLOAD
-# =========================================================
-if st.session_state.role == "admin":
-    st.markdown(
-        '<div class="info-box">👩‍💼 Admin mode: Admin can upload files, generate dashboard, and update shared data.</div>',
-        unsafe_allow_html=True,
-    )
+    if st.session_state.role != "admin":
+        return
 
     col_upload_1, col_upload_2, col_button = st.columns([1, 1, 0.8])
 
@@ -58,11 +46,11 @@ if st.session_state.role == "admin":
                 takenaka_file,
             )
 
-        df = pd.DataFrame(rows)
-        action_counts = df["Action"].value_counts().to_dict() if not df.empty else {}
+        result_df = pd.DataFrame(rows)
+        action_counts = result_df["Action"].value_counts().to_dict() if not result_df.empty else {}
 
-        save_latest_dashboard(
-            df,
+        last_updated = save_latest_dashboard(
+            result_df,
             report,
             total_docs,
             open_docs,
@@ -71,31 +59,27 @@ if st.session_state.role == "admin":
             status_detail_df,
         )
 
-        st.session_state.result_df = df
+        st.session_state.result_df = result_df
         st.session_state.report = report
         st.session_state.total_docs = total_docs
         st.session_state.open_docs = open_docs
         st.session_state.action_counts = action_counts
         st.session_state.status_summary_df = status_summary_df
         st.session_state.status_detail_df = status_detail_df
-
-        from datetime import datetime
-        st.session_state.last_updated = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
+        st.session_state.last_updated = last_updated or datetime.now().strftime("%d-%b-%Y %H:%M:%S")
 
         st.rerun()
 
-else:
-    st.markdown(
-        '<div class="viewer-box">ℹ️ Viewer mode: dashboard is read-only. Only Admin can upload files and update shared data.</div>',
-        unsafe_allow_html=True,
-    )
 
+def render_dashboard() -> None:
+    if st.session_state.result_df is None:
+        st.markdown(
+            '<div class="warning-box">⚠️ No shared dashboard data available yet. Please login as Admin and generate dashboard once.</div>',
+            unsafe_allow_html=True,
+        )
+        return
 
-# =========================================================
-# DASHBOARD VIEW
-# =========================================================
-if st.session_state.result_df is not None:
-    df = st.session_state.result_df
+    result_df = st.session_state.result_df
     action_counts = st.session_state.action_counts
     last_updated = st.session_state.get("last_updated", "")
 
@@ -111,10 +95,24 @@ if st.session_state.result_df is not None:
 
     render_action_summary(action_counts)
     render_status_summary_panel()
-    render_document_action_list(df)
+    render_document_action_list(result_df)
 
-else:
-    st.markdown(
-        '<div class="warning-box">⚠️ No shared dashboard data available yet. Please login as Admin and generate dashboard once.</div>',
-        unsafe_allow_html=True,
+
+def main() -> None:
+    st.set_page_config(
+        page_title=APP_TITLE,
+        page_icon=APP_ICON,
+        layout="wide",
     )
+
+    apply_theme()
+    init_session_state()
+    render_sidebar()
+    hydrate_session_from_latest()
+    render_header()
+    render_admin_upload()
+    render_dashboard()
+
+
+if __name__ == "__main__":
+    main()

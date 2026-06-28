@@ -1,20 +1,54 @@
-# Topaz Smart Document Tracker V6.1.8 Structured
+# Topaz Smart Tracker V7 Enterprise
 
-Structured version of the Topaz Streamlit dashboard.
+Enterprise-style Streamlit dashboard for Topaz BKK1 ICT Document Control.
 
-## Files
+## Main Features
 
-- `app.py` - main application
-- `config.py` - constants and file paths
-- `style.py` - CSS styling
-- `utils.py` - helper functions
-- `status_summary.py` - RFA/RFI latest revision summary logic
-- `report_generator.py` - Takenaka comparison report logic
-- `storage.py` - shared dashboard storage
-- `ui_components.py` - Streamlit UI sections
+- Admin / Viewer mode
+- Shared dashboard storage
+- Tracking document upload
+- Takenaka comparison
+- RFA / RFI latest revision summary
+- RFA / RFI category summary
+- Action summary
+- Excel export
+- Modular code structure
+
+## Project Structure
+
+```text
+topaz_smart_tracker_v7_enterprise/
+├── app.py
+├── config/
+│   ├── settings.py
+│   └── columns.py
+├── core/
+│   ├── session.py
+│   ├── storage.py
+│   └── utils.py
+├── services/
+│   ├── tracking_service.py
+│   ├── takenaka_service.py
+│   ├── summary_service.py
+│   └── report_service.py
+├── ui/
+│   ├── theme.py
+│   ├── sidebar.py
+│   ├── layout.py
+│   ├── cards.py
+│   └── tables.py
+├── assets/
+├── data/
+└── tests/
+```
 
 ## Run
 
 ```bash
 streamlit run app.py
 ```
+
+## Login
+
+- Admin usernames: `admin`, `pavinee`
+- Other usernames become Viewer
